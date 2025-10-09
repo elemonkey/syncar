@@ -27,5 +27,5 @@ RUN playwright install chromium
 # Instalar dependencias del sistema para Playwright
 RUN playwright install-deps
 
-# Copia el código de la aplicación
+# Copia el código de la aplicació
 COPY ./app /app/app
