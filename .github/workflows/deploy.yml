@@ -28,7 +28,7 @@ jobs:
           sudo rm -rf * .[!.]* 2>/dev/null || true
           git clone https://github.com/${{ github.repository }} .
           echo "Creando archivo .env..."
-          cat > .env << EOF
+          cat > .env << ENVEOF
           COMPOSE_PROJECT_NAME=syncar
           POSTGRES_DB=syncar_db
           POSTGRES_USER=syncar_admin
@@ -40,10 +40,14 @@ jobs:
           NODE_ENV=production
           ENV=production
           NEXT_PUBLIC_API_URL=/api/v1
-          EOF
+          ENVEOF
           echo "Limpiando contenedores y servicios anteriores..."
           sudo docker-compose down --remove-orphans 2>/dev/null || true
           sudo docker system prune -f
+          echo "Deteniendo servicios del sistema en puerto 80..."
+          sudo systemctl stop nginx 2>/dev/null || true
+          sudo systemctl stop apache2 2>/dev/null || true
+          sudo lsof -ti:80 | xargs -r sudo kill -9 2>/dev/null || true
           echo "Deteniendo contenedores que usan el puerto 80..."
           sudo docker ps -q --filter "publish=80" | xargs -r sudo docker stop
           echo "Deteniendo contenedores que usan el puerto 8000..."
