@@ -1,0 +1,48 @@
+name: 🚀 Deploy SYNCAR.CL
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 🚀 Deploy to Server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        script: |
+          cd /www/wwwroot/syncar.cl || sudo mkdir -p /www/wwwroot/syncar.cl
+          cd /www/wwwroot/syncar.cl
+          sudo rm -rf * .* 2>/dev/null || true
+          
+          git clone https://github.com/${{ github.repository }} .
+          
+          cat > .env << EOF
+          COMPOSE_PROJECT_NAME=syncar
+          POSTGRES_DB=syncar_db
+          POSTGRES_USER=syncar_admin
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          DATABASE_URL=postgresql://syncar_admin:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/syncar_db
+          REDIS_URL=redis://redis:6379/0
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          FRONTEND_URL=https://syncar.cl
+          NODE_ENV=production
+          ENV=production
+          NEXT_PUBLIC_API_URL=/api/v1
+          EOF
+          
+          sudo docker-compose up -d --build
+          
+          sleep 60
+          curl -f http://localhost/ || exit 1
+          curl -f http://localhost:8000/api/v1/health || exit 1
+          
+          echo "✅ Deployment successful!"
