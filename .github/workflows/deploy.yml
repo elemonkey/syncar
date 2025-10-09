@@ -14,6 +14,19 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
+    - name: Crear archivo .env para pruebas
+      run: |
+        echo "POSTGRES_DB=syncar_db" > .env
+        echo "POSTGRES_USER=syncar_admin" >> .env
+        echo "POSTGRES_PASSWORD=syncar_password_2024" >> .env
+        echo "DATABASE_URL=postgresql://syncar_admin:syncar_password_2024@postgres:5432/syncar_db" >> .env
+        echo "REDIS_URL=redis://redis:6379/0" >> .env
+        echo "SECRET_KEY=syncar-secret-key" >> .env
+        echo "FRONTEND_URL=https://syncar.cl" >> .env
+        echo "NODE_ENV=production" >> .env
+        echo "ENV=production" >> .env
+        echo "NEXT_PUBLIC_API_URL=/api/v1" >> .env
+
     - name: Install Docker Compose
       run: |
         echo "Instalando docker-compose..."
