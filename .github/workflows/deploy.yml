@@ -53,8 +53,9 @@ jobs:
           echo "Deteniendo contenedores que usan el puerto 8000..."
           sudo docker ps -q --filter "publish=8000" | xargs -r sudo docker stop
           echo "Levantando servicios con docker-compose..."
-          sudo docker-compose up -d --build
-          sleep 30
+          export COMPOSE_HTTP_TIMEOUT=300
+          sudo -E docker-compose up -d --build
+          sleep 60
           echo "Verificando salud del backend..."
           curl -f http://localhost:8000/api/v1/health || exit 1
           echo "Verificando salud del frontend..."
