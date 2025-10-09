@@ -46,7 +46,8 @@ services:
         condition: service_healthy
 
   celery_worker:
-    image: syncar-backend  # Usar la misma imagen que backend
+    build:
+      context: ./backend
     command: celery -A app.tasks.celery_worker.celery worker --loglevel=info
     volumes:
       - ./backend:/app
