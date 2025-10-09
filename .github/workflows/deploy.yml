@@ -6,72 +6,46 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate:
+  deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    
+    timeout-minutes: 20
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Crear archivo .env para pruebas
-      run: |
-        echo "POSTGRES_DB=syncar_db" > .env
-        echo "POSTGRES_USER=syncar_admin" >> .env
-        echo "POSTGRES_PASSWORD=syncar_password_2024" >> .env
-        echo "DATABASE_URL=postgresql://syncar_admin:syncar_password_2024@postgres:5432/syncar_db" >> .env
-        echo "REDIS_URL=redis://redis:6379/0" >> .env
-        echo "SECRET_KEY=syncar-secret-key" >> .env
-        echo "FRONTEND_URL=https://syncar.cl" >> .env
-        echo "NODE_ENV=production" >> .env
-        echo "ENV=production" >> .env
-        echo "NEXT_PUBLIC_API_URL=/api/v1" >> .env
-
-    - name: Install Docker Compose
-      run: |
-        echo "Instalando docker-compose..."
-        sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-        deploy:
-          runs-on: ubuntu-latest
-          timeout-minutes: 20
-          steps:
-          - name: Checkout Code
-            uses: actions/checkout@v4
-
-          - name: Deploy to Production Server
-            uses: appleboy/ssh-action@v1.0.0
-            with:
-              host: ${{ secrets.SERVER_HOST }}
-              username: ${{ secrets.SERVER_USER }}
-              key: ${{ secrets.SERVER_SSH_KEY }}
-              script: |
-                set -e
-                echo "🚀 Iniciando despliegue en producción..."
-                DEPLOY_PATH=/www/wwwroot/syncar.cl
-                sudo mkdir -p $DEPLOY_PATH
-                cd $DEPLOY_PATH
-                sudo rm -rf * .[!.]* 2>/dev/null || true
-                git clone https://github.com/${{ github.repository }} .
-                echo "Creando archivo .env..."
-                cat > .env << EOF
-                COMPOSE_PROJECT_NAME=syncar
-                POSTGRES_DB=syncar_db
-                POSTGRES_USER=syncar_admin
-                POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-                DATABASE_URL=postgresql://syncar_admin:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/syncar_db
-                REDIS_URL=redis://redis:6379/0
-                SECRET_KEY=${{ secrets.SECRET_KEY }}
-                FRONTEND_URL=https://syncar.cl
-                NODE_ENV=production
-                ENV=production
-                NEXT_PUBLIC_API_URL=/api/v1
-                EOF
-                echo "Levantando servicios con docker-compose..."
-                sudo docker-compose up -d --build
-                sleep 30
-                echo "Verificando salud del backend..."
-                curl -f http://localhost:8000/api/v1/health || exit 1
-                echo "Verificando salud del frontend..."
-                curl -f http://localhost/ || exit 1
-                echo "✅ Despliegue exitoso!"
+    - name: Deploy to Production Server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        script: |
+          set -e
+          echo "🚀 Iniciando despliegue en producción..."
+          DEPLOY_PATH=/www/wwwroot/syncar.cl
+          sudo mkdir -p $DEPLOY_PATH
+          cd $DEPLOY_PATH
+          sudo rm -rf * .[!.]* 2>/dev/null || true
+          git clone https://github.com/${{ github.repository }} .
+          echo "Creando archivo .env..."
+          cat > .env << EOF
+          COMPOSE_PROJECT_NAME=syncar
+          POSTGRES_DB=syncar_db
+          POSTGRES_USER=syncar_admin
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          DATABASE_URL=postgresql://syncar_admin:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/syncar_db
+          REDIS_URL=redis://redis:6379/0
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          FRONTEND_URL=https://syncar.cl
+          NODE_ENV=production
+          ENV=production
+          NEXT_PUBLIC_API_URL=/api/v1
+          EOF
+          echo "Levantando servicios con docker-compose..."
+          sudo docker-compose up -d --build
+          sleep 30
+          echo "Verificando salud del backend..."
+          curl -f http://localhost:8000/api/v1/health || exit 1
+          echo "Verificando salud del frontend..."
+          curl -f http://localhost/ || exit 1
+          echo "✅ Despliegue exitoso!"
