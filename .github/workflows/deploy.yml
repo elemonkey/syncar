@@ -1,5 +1,4 @@
 name: Deploy SYNCAR
-name: Deploy SYNCAR
 
 on:
   push:
