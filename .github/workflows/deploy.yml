@@ -59,4 +59,10 @@ jobs:
           curl -f http://localhost:8000/api/v1/health || exit 1
           echo "Verificando salud del frontend..."
           curl -f http://localhost/ || echo "Frontend check failed, but continuing deployment"
+          echo "Estado de los contenedores:"
+          sudo docker ps
+          echo "Logs del frontend:"
+          sudo docker logs syncar_frontend_1 --tail 20
+          echo "Logs de nginx:"
+          sudo docker logs syncar_nginx_1 --tail 10
           echo "✅ Despliegue exitoso!"
