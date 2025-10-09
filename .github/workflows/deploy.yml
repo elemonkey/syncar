@@ -6,6 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
+          echo "Deteniendo contenedores que usan el puerto 8000..."
+          sudo docker ps -q --filter "publish=8000" | xargs -r sudo docker stop
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -41,6 +43,10 @@ jobs:
           ENV=production
           NEXT_PUBLIC_API_URL=/api/v1
           EOF
+          echo "Deteniendo contenedores que usan el puerto 80..."
+          sudo docker ps -q --filter "publish=80" | xargs -r sudo docker stop
+          echo "Deteniendo contenedores que usan el puerto 8000..."
+          sudo docker ps -q --filter "publish=8000" | xargs -r sudo docker stop
           echo "Levantando servicios con docker-compose..."
           sudo docker-compose up -d --build
           sleep 30
