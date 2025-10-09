@@ -41,6 +41,9 @@ jobs:
           ENV=production
           NEXT_PUBLIC_API_URL=/api/v1
           EOF
+          echo "Limpiando contenedores y servicios anteriores..."
+          sudo docker-compose down --remove-orphans 2>/dev/null || true
+          sudo docker system prune -f
           echo "Deteniendo contenedores que usan el puerto 80..."
           sudo docker ps -q --filter "publish=80" | xargs -r sudo docker stop
           echo "Deteniendo contenedores que usan el puerto 8000..."
