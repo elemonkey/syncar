@@ -13,10 +13,7 @@ apt-get install -y curl wget git unzip software-properties-common apt-transport-
 
 # 2. Instalar Docker
 echo "🐳 Instalando Docker..."
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-apt-get update
-apt-get install -y docker-ce docker-ce-cli containerd.io
+curl -fsSL https://get.docker.com | sh
 
 # 3. Instalar Docker Compose
 echo "📋 Instalando Docker Compose..."
@@ -42,14 +39,19 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
 
-# 7. Crear directorios y clonar proyecto
-echo "📁 Preparando proyecto..."
+# 7. Crear directorios necesarios
+echo "📁 Preparando directorios..."
 mkdir -p /www/wwwroot/syncar.cl
+mkdir -p /var/www/certbot
+mkdir -p /etc/letsencrypt
+
+# 8. Clonar proyecto
+echo "📥 Clonando proyecto..."
 cd /www/wwwroot/syncar.cl
 rm -rf * .[!.]* 2>/dev/null || true
 git clone https://github.com/elemonkey/syncar .
 
-# 8. Crear archivo .env
+# 9. Crear archivo .env
 echo "⚙️ Configurando variables de entorno..."
 cat > .env << 'ENVEOF'
 COMPOSE_PROJECT_NAME=syncar
@@ -59,56 +61,52 @@ POSTGRES_PASSWORD=syncar123456
 DATABASE_URL=postgresql://syncar_admin:syncar123456@postgres:5432/syncar_db
 REDIS_URL=redis://redis:6379/0
 SECRET_KEY=supersecretkey-for-production-change-this-key-12345678
-FRONTEND_URL=https://syncar.cl
+FRONTEND_URL=http://45.14.194.85
 NODE_ENV=production
 ENV=production
 NEXT_PUBLIC_API_URL=/api/v1
 ENVEOF
 
-# 9. Limpiar procesos en puertos
+# 10. Limpiar procesos en puertos
 echo "🧹 Limpiando puertos..."
 lsof -ti:80 | xargs -r kill -9 2>/dev/null || true
 lsof -ti:443 | xargs -r kill -9 2>/dev/null || true
 lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true
 
-# 10. Desplegar aplicación
+# 11. Desplegar aplicación
 echo "🚀 Desplegando aplicación..."
 export COMPOSE_HTTP_TIMEOUT=300
 docker-compose down --remove-orphans 2>/dev/null || true
 docker system prune -f
 docker-compose up -d --build
 
-# 11. Esperar a que los servicios estén listos
+# 12. Esperar a que los servicios estén listos
 echo "⏳ Esperando servicios..."
-sleep 60
-
-# 12. Obtener certificado SSL
-echo "🔒 Configurando SSL..."
-docker-compose stop nginx
-certbot certonly --standalone \
-  --non-interactive \
-  --agree-tos \
-  --email admin@syncar.cl \
-  -d syncar.cl \
-  -d www.syncar.cl || echo "⚠️ Error SSL, continuando..."
-
-# 13. Reiniciar nginx
-docker-compose up -d nginx
-
-# 14. Verificaciones finales
-echo "🔍 Verificando despliegue..."
 sleep 30
 
+# 13. Verificaciones
+echo "🔍 Verificando despliegue..."
 echo "📋 Estado de contenedores:"
 docker ps
 
+echo ""
 echo "🔧 Verificando backend:"
 curl -f http://localhost:8000/api/v1/health && echo "✅ Backend OK" || echo "❌ Backend Error"
 
-echo "🌐 Verificando frontend:"
+echo ""
+echo "🌐 Verificando frontend via nginx:"
 curl -f http://localhost/ && echo "✅ Frontend OK" || echo "❌ Frontend Error"
 
+echo ""
+echo "🌍 Verificando acceso externo:"
+curl -f http://45.14.194.85/ && echo "✅ Acceso externo OK" || echo "❌ Acceso externo Error"
+
+echo ""
 echo "🎉 DESPLIEGUE COMPLETADO!"
-echo "🌐 HTTP: http://syncar.cl"
-echo "🔒 HTTPS: https://syncar.cl"
-echo "📊 API: https://syncar.cl/api/v1/health"
+echo "🌐 Acceso por IP: http://45.14.194.85"
+echo "� API: http://45.14.194.85/api/v1/health"
+echo ""
+echo "📝 Para configurar SSL más tarde:"
+echo "1. Configurar DNS: syncar.cl -> 45.14.194.85"
+echo "2. Ejecutar: certbot certonly --standalone -d syncar.cl -d www.syncar.cl"
+echo "3. Agregar configuración SSL a nginx/nginx.conf"
