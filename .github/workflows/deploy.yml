@@ -13,7 +13,7 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Deploy to Production Server
+    - name: Setup Clean Server
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.SERVER_HOST }}
@@ -21,13 +21,71 @@ jobs:
         key: ${{ secrets.SERVER_SSH_KEY }}
         script: |
           set -e
-          echo "🚀 Iniciando despliegue en producción..."
+          echo "🧹 Configurando servidor limpio..."
+          
+          # Verificar si Docker ya está instalado
+          if ! command -v docker &> /dev/null; then
+            echo "🚀 Instalando dependencias del servidor..."
+            
+            # Actualizar sistema
+            apt-get update
+            apt-get upgrade -y
+            
+            # Instalar dependencias básicas
+            apt-get install -y curl wget git unzip software-properties-common apt-transport-https ca-certificates gnupg lsb-release ufw
+            
+            # Instalar Docker
+            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+            apt-get update
+            apt-get install -y docker-ce docker-ce-cli containerd.io
+            
+            # Instalar Docker Compose
+            curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            chmod +x /usr/local/bin/docker-compose
+            
+            # Iniciar Docker
+            systemctl start docker
+            systemctl enable docker
+            
+            # Instalar Certbot
+            apt-get install -y certbot
+            
+            # Configurar firewall
+            ufw --force reset
+            ufw default deny incoming
+            ufw default allow outgoing
+            ufw allow ssh
+            ufw allow 80/tcp
+            ufw allow 443/tcp
+            ufw --force enable
+            
+            echo "✅ Servidor configurado"
+          else
+            echo "✅ Docker ya está instalado"
+          fi
+
+    - name: Deploy Application
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        script: |
+          set -e
+          echo "🚀 Desplegando aplicación..."
+          
           DEPLOY_PATH=/www/wwwroot/syncar.cl
-          sudo mkdir -p $DEPLOY_PATH
+          mkdir -p $DEPLOY_PATH
           cd $DEPLOY_PATH
-          sudo rm -rf * .[!.]* 2>/dev/null || true
+          
+          # Limpiar directorio
+          rm -rf * .[!.]* 2>/dev/null || true
+          
+          # Clonar repositorio
           git clone https://github.com/${{ github.repository }} .
-          echo "Creando archivo .env..."
+          
+          # Crear archivo .env
           cat > .env << ENVEOF
           COMPOSE_PROJECT_NAME=syncar
           POSTGRES_DB=syncar_db
@@ -41,29 +99,84 @@ jobs:
           ENV=production
           NEXT_PUBLIC_API_URL=/api/v1
           ENVEOF
-          echo "Limpiando contenedores y servicios anteriores..."
-          sudo docker-compose down --remove-orphans 2>/dev/null || true
-          sudo docker system prune -f
-          echo "Deteniendo servicios del sistema en puerto 80..."
-          sudo systemctl stop nginx 2>/dev/null || true
-          sudo systemctl stop apache2 2>/dev/null || true
-          sudo lsof -ti:80 | xargs -r sudo kill -9 2>/dev/null || true
-          echo "Deteniendo contenedores que usan el puerto 80..."
-          sudo docker ps -q --filter "publish=80" | xargs -r sudo docker stop
-          echo "Deteniendo contenedores que usan el puerto 8000..."
-          sudo docker ps -q --filter "publish=8000" | xargs -r sudo docker stop
-          echo "Levantando servicios con docker-compose..."
+          
+          # Limpiar contenedores anteriores
+          docker-compose down --remove-orphans 2>/dev/null || true
+          docker system prune -f
+          
+          # Detener procesos en puertos necesarios
+          lsof -ti:80 | xargs -r kill -9 2>/dev/null || true
+          lsof -ti:443 | xargs -r kill -9 2>/dev/null || true
+          
+          # Levantar servicios
           export COMPOSE_HTTP_TIMEOUT=300
-          sudo -E docker-compose up -d --build
+          docker-compose up -d --build
+          
+          # Esperar a que los servicios estén listos
           sleep 60
-          echo "Verificando salud del backend..."
+          
+          echo "✅ Aplicación desplegada"
+
+    - name: Setup SSL Certificate
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        script: |
+          set -e
+          echo "🔒 Configurando certificado SSL..."
+          
+          # Verificar si ya existe certificado
+          if [ ! -f "/etc/letsencrypt/live/syncar.cl/fullchain.pem" ]; then
+            echo "🆕 Obteniendo certificado SSL..."
+            
+            # Parar nginx temporalmente para certbot
+            cd /www/wwwroot/syncar.cl
+            docker-compose stop nginx
+            
+            # Obtener certificado
+            certbot certonly --standalone \
+              --non-interactive \
+              --agree-tos \
+              --email admin@syncar.cl \
+              -d syncar.cl \
+              -d www.syncar.cl
+            
+            # Reiniciar nginx
+            docker-compose up -d nginx
+            
+            echo "✅ Certificado SSL configurado"
+          else
+            echo "✅ Certificado SSL ya existe"
+          fi
+
+    - name: Final Health Check
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        script: |
+          set -e
+          echo "🔍 Verificación final..."
+          
+          cd /www/wwwroot/syncar.cl
+          
+          # Verificar contenedores
+          echo "📋 Estado de contenedores:"
+          docker ps
+          
+          # Verificar backend
+          echo "🔧 Verificando backend..."
           curl -f http://localhost:8000/api/v1/health || exit 1
-          echo "Verificando salud del frontend..."
-          curl -f http://localhost/ || echo "Frontend check failed, but continuing deployment"
-          echo "Estado de los contenedores:"
-          sudo docker ps
-          echo "Logs del frontend:"
-          sudo docker logs syncar_frontend_1 --tail 20
-          echo "Logs de nginx:"
-          sudo docker logs syncar_nginx_1 --tail 10
-          echo "✅ Despliegue exitoso!"
+          
+          # Verificar frontend
+          echo "🌐 Verificando frontend..."
+          curl -f http://localhost/ || echo "⚠️ Frontend check failed"
+          
+          # Verificar HTTPS
+          echo "🔒 Verificando HTTPS..."
+          curl -f https://syncar.cl/ || echo "⚠️ HTTPS check failed"
+          
+          echo "✅ Despliegue completado exitosamente!"
