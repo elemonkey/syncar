@@ -76,16 +76,21 @@ jobs:
           echo "🚀 Desplegando aplicación..."
           
           DEPLOY_PATH=/www/wwwroot/syncar.cl
+          REPO_URL=https://github.com/${{ github.repository }}
+
           mkdir -p $DEPLOY_PATH
           cd $DEPLOY_PATH
-          
-          # Limpiar directorio
-          rm -rf * .[!.]* 2>/dev/null || true
-          
-          # Clonar repositorio
-          git clone https://github.com/${{ github.repository }} .
-          
-          # Crear archivo .env
+
+          if [ ! -d ".git" ]; then
+            echo "🆕 Clonando repositorio..."
+            git clone $REPO_URL .
+          else
+            echo "🔄 Actualizando repositorio..."
+            git fetch origin
+            git reset --hard origin/main
+          fi
+
+          echo "📝 Creando archivo .env..."
           cat > .env << ENVEOF
           COMPOSE_PROJECT_NAME=syncar
           POSTGRES_DB=syncar_db
@@ -100,19 +105,11 @@ jobs:
           NEXT_PUBLIC_API_URL=/api/v1
           ENVEOF
           
-          # Limpiar contenedores anteriores
-          docker-compose down --remove-orphans 2>/dev/null || true
-          docker system prune -f
-          
-          # Detener procesos en puertos necesarios
-          lsof -ti:80 | xargs -r kill -9 2>/dev/null || true
-          lsof -ti:443 | xargs -r kill -9 2>/dev/null || true
-          
-          # Levantar servicios
+          echo "🐳 Levantando servicios con Docker Compose..."
           export COMPOSE_HTTP_TIMEOUT=300
           docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
           
-          # Esperar a que los servicios estén listos
+          echo "⏳ Esperando a que los servicios se inicien..."
           sleep 60
           
           echo "✅ Aplicación desplegada"
