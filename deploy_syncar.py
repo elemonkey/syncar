@@ -29,6 +29,37 @@ def compare_files(local, remote):
     return diff
 
 def validate_and_deploy():
+    # Validar configuración de nginx y certificados SSL antes de finalizar
+    print("\nValidando configuración de nginx y certificados SSL...")
+    # Verificar que el archivo nginx.conf contiene el bloque 'listen 443 ssl;'
+    with open("nginx/nginx.conf", "r") as f:
+        nginx_conf = f.read()
+    if "listen 443 ssl;" not in nginx_conf:
+        print("\n⚠️  nginx.conf no tiene configurado el bloque HTTPS. Deteniendo deploy.")
+        return
+    # Verificar que los certificados existen
+    import os
+    cert_path = "/etc/letsencrypt/live/syncar.cl/fullchain.pem"
+    key_path = "/etc/letsencrypt/live/syncar.cl/privkey.pem"
+    ssh_cert_check = f"ssh {SERVER_USER}@{SERVER_IP} 'test -f {cert_path} && test -f {key_path}'"
+    cert_result = subprocess.run(ssh_cert_check, shell=True)
+    if cert_result.returncode != 0:
+        print("\n⚠️  Los certificados SSL no existen en el servidor. Deteniendo deploy.")
+        return
+    # Reiniciar nginx y probar endpoints HTTP/HTTPS
+    print("\nReiniciando nginx y probando endpoints...")
+    restart_nginx_cmd = f"ssh {SERVER_USER}@{SERVER_IP} 'docker restart syncar-nginx-1'"
+    subprocess.run(restart_nginx_cmd, shell=True)
+    # Probar HTTP
+    http_check_cmd = f"ssh {SERVER_USER}@{SERVER_IP} 'curl -s -o /dev/null -w \"%{{http_code}}\" http://localhost'"
+    http_code = subprocess.run(http_check_cmd, shell=True, capture_output=True, text=True).stdout.strip()
+    # Probar HTTPS
+    https_check_cmd = f"ssh {SERVER_USER}@{SERVER_IP} 'curl -k -s -o /dev/null -w \"%{{http_code}}\" https://localhost'"
+    https_code = subprocess.run(https_check_cmd, shell=True, capture_output=True, text=True).stdout.strip()
+    if http_code != "200" or https_code != "200":
+        print(f"\n⚠️  Error en respuesta HTTP ({http_code}) o HTTPS ({https_code}). Deteniendo deploy.")
+        return
+    print("\n✔️  nginx y SSL validados correctamente. Deploy finalizado.")
     print("\n=== VALIDACIÓN Y DEPLOY AUTOMÁTICO SYNCAR ===")
     all_ok = True
     for local, remote in FILES:
