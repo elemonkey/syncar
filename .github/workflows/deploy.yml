@@ -110,7 +110,7 @@ jobs:
           
           # Levantar servicios
           export COMPOSE_HTTP_TIMEOUT=300
-          docker-compose up -d --build
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
           
           # Esperar a que los servicios estén listos
           sleep 60
@@ -150,6 +150,41 @@ jobs:
           else
             echo "✅ Certificado SSL ya existe"
           fi
+
+    - name: Pre-deploy Validations
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        script: |
+          set -e
+          echo "🔍 Validando archivos clave y migraciones Alembic..."
+          cd /www/wwwroot/syncar.cl
+          # Comparar archivos locales vs producción
+          diff .env .env.example || echo "⚠️ Diferencias en .env"
+          diff docker-compose.yml docker-compose.yml.example || echo "⚠️ Diferencias en docker-compose.yml"
+          diff nginx/nginx.conf nginx/nginx.conf.example || echo "⚠️ Diferencias en nginx.conf"
+          # Verificar migraciones Alembic
+          cd backend
+          alembic current || exit 1
+          cd ..
+          echo "✔️ Validaciones previas completadas"
+
+    - name: Post-deploy Health Checks
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        script: |
+          set -e
+          echo "🔍 Verificando endpoints y servicios..."
+          cd /www/wwwroot/syncar.cl
+          curl -f http://localhost:8000/api/v1/health || (echo "❌ Backend roto, restaurando..." && docker-compose down && exit 1)
+          curl -f http://localhost/ || (echo "❌ Frontend roto, restaurando..." && docker-compose down && exit 1)
+          curl -f https://syncar.cl/ || (echo "❌ HTTPS roto, restaurando..." && docker-compose down && exit 1)
+          echo "✅ Todo OK tras el deploy"
 
     - name: Final Health Check
       uses: appleboy/ssh-action@v1.0.0
