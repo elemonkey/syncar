@@ -167,7 +167,7 @@ jobs:
           diff nginx/nginx.conf nginx/nginx.conf.example || echo "⚠️ Diferencias en nginx.conf"
           # Verificar migraciones Alembic
           cd backend
-          alembic current || exit 1
+          docker-compose exec backend alembic current || exit 1
           cd ..
           echo "✔️ Validaciones previas completadas"
 
