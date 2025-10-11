@@ -110,8 +110,21 @@ jobs:
           export COMPOSE_HTTP_TIMEOUT=300
           docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
           
-          echo "⏳ Esperando a que los servicios se inicien..."
-          sleep 120
+          echo "⏳ Esperando a que el frontend esté listo... (máx. 120s)"
+          for i in {1..12}; do
+            if curl -s http://localhost:3000 > /dev/null; then
+              echo "✅ Frontend listo."
+              break
+            fi
+            echo "...esperando 10s más..."
+            sleep 10
+          done
+
+          if ! curl -s http://localhost:3000 > /dev/null; then
+            echo "❌ El frontend no arrancó después de 120s. Mostrando logs..."
+            docker-compose logs frontend
+            exit 1
+          fi
           
           echo "✅ Aplicación desplegada"
 
