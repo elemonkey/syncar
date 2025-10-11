@@ -102,6 +102,7 @@ jobs:
           FRONTEND_URL=https://syncar.cl
           NODE_ENV=production
           ENV=production
+          APP_VERSION=v1.0.${{ github.run_number }}
           NEXT_PUBLIC_API_URL=/api/v1
           ENVEOF
           
