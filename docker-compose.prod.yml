@@ -1,0 +1,172 @@
+# Docker Compose para PRODUCCIÓN
+# Incluye todos los servicios: backend, celery, frontend, nginx, postgres, redis
+
+services:
+  # ===== PostgreSQL =====
+  postgres:
+    image: postgres:16-alpine
+    container_name: importapp-postgres
+    restart: always
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - importapp-network
+
+  # ===== Redis =====
+  redis:
+    image: redis:7-alpine
+    container_name: importapp-redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    command: redis-server --appendonly yes
+    networks:
+      - importapp-network
+
+  # ===== Backend (FastAPI) =====
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: importapp-backend
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    networks:
+      - importapp-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ===== Celery Worker =====
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: importapp-celery-worker
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - importapp-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # ===== Celery Beat (tareas programadas) =====
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: importapp-celery-beat
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+    depends_on:
+      - redis
+    networks:
+      - importapp-network
+
+  # ===== Flower (Monitoring de Celery) =====
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: importapp-flower
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+    command: celery -A app.tasks.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+    networks:
+      - importapp-network
+
+  # ===== Frontend (Next.js) =====
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+    container_name: importapp-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - importapp-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ===== Nginx (Reverse Proxy) =====
+  nginx:
+    image: nginx:alpine
+    container_name: importapp-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_cache:/var/cache/nginx
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - importapp-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  nginx_cache:
+
+networks:
+  importapp-network:
+    driver: bridge

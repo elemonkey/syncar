@@ -1,0 +1,53 @@
+# Docker Compose para DESARROLLO LOCAL
+# Solo PostgreSQL y Redis en Docker
+# Backend, Frontend y Celery se ejecutan nativamente
+
+services:
+  # ===== PostgreSQL =====
+  postgres:
+    image: postgres:16-alpine
+    container_name: importapp-postgres-dev
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-importapp_db}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-devpassword}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - importapp-network
+
+  # ===== Redis =====
+  redis:
+    image: redis:7-alpine
+    container_name: importapp-redis-dev
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data_dev:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    command: redis-server --appendonly yes
+    networks:
+      - importapp-network
+
+volumes:
+  postgres_data_dev:
+    driver: local
+  redis_data_dev:
+    driver: local
+
+networks:
+  importapp-network:
+    driver: bridge

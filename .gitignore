@@ -1,0 +1,68 @@
+# ===== PYTHON =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# ===== NODE / FRONTEND =====
+node_modules/
+.next/
+out/
+.turbo/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.DS_Store
+*.pem
+
+# ===== ENVIRONMENT =====
+.env
+.env.local
+.env.production
+.env.*.local
+*.env
+
+# ===== IDEs =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== DOCKER =====
+.dockerignore
+
+# ===== DATABASE =====
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== PLAYWRIGHT =====
+.playwright/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ===== LOGS =====
+*.log
+logs/
+
+# ===== OTROS =====
+.cache/
+tmp/
+temp/
