@@ -114,36 +114,41 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🚀 Deploy to production server
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          passphrase: ""
-          script: |
-            cd /opt/import-app
-
-            # Pull latest code
-            git pull origin main
-
-            # Pull latest Docker images
-            docker-compose -f docker-compose.prod.yml pull
-
-            # Restart services (zero-downtime)
-            docker-compose -f docker-compose.prod.yml up -d --no-deps backend frontend celery-worker
-
-            # Clean up old images
-            docker image prune -f
-
-            echo "✅ Deployment completed successfully"
+      - name: � Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+          
       - name: 🔍 Debug SSH Key
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > test_key
-          echo "--- CONTENIDO test_key ---"
-          cat test_key
-          echo "--- FIN CONTENIDO ---"
-          ssh-keygen -lf test_key
+          echo "--- FINGERPRINT DE LA CLAVE ---"
+          ssh-keygen -lf ~/.ssh/deploy_key
+          echo "--- PRIMERAS 5 LÍNEAS DE LA CLAVE ---"
+          head -5 ~/.ssh/deploy_key
+          echo "--- ÚLTIMAS 5 LÍNEAS DE LA CLAVE ---"
+          tail -5 ~/.ssh/deploy_key
+
+      - name: 🚀 Deploy to production server
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
+            cd /opt/import-app
+            
+            # Pull latest code
+            git pull origin main
+            
+            # Pull latest Docker images
+            docker-compose -f docker-compose.prod.yml pull
+            
+            # Restart services (zero-downtime)
+            docker-compose -f docker-compose.prod.yml up -d --no-deps backend frontend celery-worker
+            
+            # Clean up old images
+            docker image prune -f
+            
+            echo "✅ Deployment completed successfully"
+          ENDSSH
 
       - name: 🔔 Notify deployment status
         if: always()
