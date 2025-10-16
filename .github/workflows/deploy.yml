@@ -140,11 +140,9 @@ jobs:
       - name: 🔍 Debug SSH Key
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > test_key
-          ssh-keygen -lf test_key
-
-      - name: 🔍 Debug SSH Key
-        run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > test_key
+          echo "--- CONTENIDO test_key ---"
+          cat test_key
+          echo "--- FIN CONTENIDO ---"
           ssh-keygen -lf test_key
 
       - name: 🔔 Notify deployment status
