@@ -83,6 +83,7 @@ class Category(Base):
     url: Mapped[Optional[str]] = mapped_column(String(500))
     external_id: Mapped[Optional[str]] = mapped_column(String(100), index=True)
     product_count: Mapped[int] = mapped_column(Integer, default=0)
+    selected: Mapped[bool] = mapped_column(Boolean, default=False)  # Para guardar selección del usuario
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

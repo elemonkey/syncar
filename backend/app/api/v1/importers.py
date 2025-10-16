@@ -258,6 +258,7 @@ async def get_categories(importer: str = None, db: AsyncSession = Depends(get_db
                 "external_id": cat.external_id,
                 "url": cat.url,
                 "product_count": cat.product_count,
+                "selected": cat.selected,
                 "importer": cat.importer.name if cat.importer else None,
                 "created_at": cat.created_at.isoformat() if cat.created_at else None,
             }
@@ -265,6 +266,66 @@ async def get_categories(importer: str = None, db: AsyncSession = Depends(get_db
         ],
         "total": len(categories),
     }
+
+
+class CategorySelectionRequest(BaseModel):
+    category_ids: List[str]
+
+
+@router.post("/{importer_name}/categories/selection")
+async def save_category_selection(
+    importer_name: str,
+    request: CategorySelectionRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Guarda la selección de categorías para un importador
+    
+    Args:
+        importer_name: Nombre del importador
+        request: Lista de IDs de categorías seleccionadas
+    
+    Returns:
+        Confirmación de guardado
+    """
+    try:
+        # Obtener el importador
+        result = await db.execute(
+            select(Importer).where(Importer.name == importer_name.upper())
+        )
+        importer = result.scalar_one_or_none()
+        
+        if not importer:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Importador '{importer_name}' no encontrado"
+            )
+        
+        # Desmarcar todas las categorías del importador
+        result = await db.execute(
+            select(Category).where(Category.importer_id == importer.id)
+        )
+        all_categories = result.scalars().all()
+        
+        for category in all_categories:
+            category.selected = str(category.id) in request.category_ids
+        
+        await db.commit()
+        
+        logger.info(f"✅ Guardada selección de {len(request.category_ids)} categorías para {importer_name}")
+        
+        return {
+            "success": True,
+            "message": f"Selección guardada: {len(request.category_ids)} categorías",
+            "importer": importer_name,
+            "selected_count": len(request.category_ids)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error guardando selección: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/products")

@@ -18,6 +18,7 @@ interface Category {
   external_id: string;
   url?: string;
   product_count?: number;
+  selected?: boolean;
 }
 
 export const CategoriesImporter = forwardRef<
@@ -34,7 +35,7 @@ export const CategoriesImporter = forwardRef<
     type: "success" | "error" | "info";
   } | null>(null);
 
-  // Cargar categorías desde la BD al montar el componente
+  // Cargar categorías y selección desde la BD al montar el componente
   const loadCategoriesFromDB = async () => {
     try {
       const apiUrl =
@@ -47,8 +48,16 @@ export const CategoriesImporter = forwardRef<
         const data = await response.json();
         if (data.categories && data.categories.length > 0) {
           setCategories(data.categories);
+          
+          // Cargar categorías seleccionadas previamente
+          const selectedCategoryIds = data.categories
+            .filter((cat: Category) => cat.selected)
+            .map((cat: Category) => cat.id);
+          
+          setSelectedIds(new Set(selectedCategoryIds));
+          
           console.log(
-            `✅ Cargadas ${data.categories.length} categorías desde la BD`
+            `✅ Cargadas ${data.categories.length} categorías desde la BD (${selectedCategoryIds.length} seleccionadas)`
           );
         }
       }
@@ -59,8 +68,11 @@ export const CategoriesImporter = forwardRef<
     }
   };
 
-  // Cargar categorías al montar el componente
+  // Cargar categorías al montar el componente o cuando cambia el importador
   useEffect(() => {
+    setLoadingFromDB(true);
+    setCategories([]);
+    setSelectedIds(new Set());
     loadCategoriesFromDB();
   }, [importerId]);
 
@@ -153,8 +165,41 @@ export const CategoriesImporter = forwardRef<
     }
   };
 
-  const handleContinue = () => {
-    onCategoriesImported(Array.from(selectedIds));
+  const handleSaveSelection = async () => {
+    try {
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+      
+      const response = await fetch(
+        `${apiUrl}/importers/${importerId}/categories/selection`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            category_ids: Array.from(selectedIds),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Error al guardar selección");
+      }
+
+      setToast({
+        type: "success",
+        message: `Selección guardada!\n\n${selectedIds.size} categorías seleccionadas para ${importerId}`,
+      });
+
+      // Notificar al componente padre
+      onCategoriesImported(Array.from(selectedIds));
+    } catch (err) {
+      setToast({
+        type: "error",
+        message: "Error al guardar la selección de categorías",
+      });
+    }
   };
 
   return (
@@ -217,18 +262,10 @@ export const CategoriesImporter = forwardRef<
                   : "Seleccionar todas"}
               </button>
               <button
-                onClick={handleContinue}
-                disabled={selectedIds.size === 0}
-                className={`
-                  px-6 py-2 rounded-lg font-medium transition-colors
-                  ${
-                    selectedIds.size > 0
-                      ? "bg-blue-500 hover:bg-blue-600 text-white"
-                      : "bg-gray-600 text-gray-400 cursor-not-allowed"
-                  }
-                `}
+                onClick={handleSaveSelection}
+                className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
               >
-                Continuar →
+                💾 Guardar Selección
               </button>
             </div>
           </div>

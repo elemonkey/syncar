@@ -103,6 +103,7 @@ class NoriegaAuthComponent(AuthComponent):
             # � Detectar y cerrar modal/popup si existe
             logger.info("🔍 Buscando modal o popup...")
             import asyncio
+
             await asyncio.sleep(2)  # Esperar a que aparezca el modal
 
             try:
@@ -110,11 +111,11 @@ class NoriegaAuthComponent(AuthComponent):
                 # Intentar detectar elementos comunes de modals
                 modal_selectors = [
                     'div[role="dialog"]',
-                    '.modal',
-                    '#modal',
-                    '.popup',
-                    '.alert',
-                    'div.swal2-container',  # SweetAlert
+                    ".modal",
+                    "#modal",
+                    ".popup",
+                    ".alert",
+                    "div.swal2-container",  # SweetAlert
                 ]
 
                 modal_found = False
@@ -135,10 +136,12 @@ class NoriegaAuthComponent(AuthComponent):
                     logger.info(f"📐 Viewport: {viewport}")
 
                     # Hacer clic en el último pixel superior derecho (con margen de seguridad)
-                    x = viewport['width'] - 10  # 10px desde el borde derecho
+                    x = viewport["width"] - 10  # 10px desde el borde derecho
                     y = 10  # 10px desde el borde superior
 
-                    logger.info(f"🖱️  Haciendo clic en esquina superior derecha: ({x}, {y})")
+                    logger.info(
+                        f"🖱️  Haciendo clic en esquina superior derecha: ({x}, {y})"
+                    )
                     await page.mouse.click(x, y)
                     await asyncio.sleep(1)
                     logger.info("✅ Modal cerrado")
@@ -200,10 +203,14 @@ class NoriegaCategoriesComponent(CategoriesComponent):
             await self.update_progress("Iniciando extracción de categorías...", 30)
 
             # URL de la página de categorías (Lista por Medida)
-            categories_url = "https://ecommerce.noriegavanzulli.cl/b2b/seleccion_medida.jsp"
+            categories_url = (
+                "https://ecommerce.noriegavanzulli.cl/b2b/seleccion_medida.jsp"
+            )
 
             self.logger.info(f"🔗 Navegando a página de categorías: {categories_url}")
-            await self.page.goto(categories_url, wait_until="networkidle", timeout=60000)
+            await self.page.goto(
+                categories_url, wait_until="networkidle", timeout=60000
+            )
             self.logger.info("✅ Página de categorías cargada")
 
             # 📸 Screenshot de la página de categorías
@@ -220,7 +227,7 @@ class NoriegaCategoriesComponent(CategoriesComponent):
             self.logger.info("📋 Extrayendo categorías de 'X MEDIDA'...")
 
             # Selector: tabla dentro de #listado2 > #tabla_lista
-            categories_selector = '#listado2 #tabla_lista table tbody tr td a'
+            categories_selector = "#listado2 #tabla_lista table tbody tr td a"
             category_elements = await self.page.query_selector_all(categories_selector)
 
             categories = []
@@ -231,22 +238,24 @@ class NoriegaCategoriesComponent(CategoriesComponent):
                     category_name = category_name.strip() if category_name else ""
 
                     # Extraer href (URL de la categoría)
-                    href = await element.get_attribute('href')
+                    href = await element.get_attribute("href")
 
                     if category_name and href:
                         # Construir URL completa
-                        if not href.startswith('http'):
+                        if not href.startswith("http"):
                             base_url = "https://ecommerce.noriegavanzulli.cl/b2b/"
                             category_url = base_url + href
                         else:
                             category_url = href
 
-                        categories.append({
-                            "name": category_name,
-                            "external_id": category_name,  # Usar el nombre como ID
-                            "url": category_url,
-                            "type": "medida"  # Tipo de categoría
-                        })
+                        categories.append(
+                            {
+                                "name": category_name,
+                                "external_id": category_name,  # Usar el nombre como ID
+                                "url": category_url,
+                                "type": "medida",  # Tipo de categoría
+                            }
+                        )
 
                         self.logger.info(f"  ✓ {category_name}")
 
@@ -257,29 +266,33 @@ class NoriegaCategoriesComponent(CategoriesComponent):
             # También extraer categorías de la segunda tabla (X Nº DE FABRICANTE)
             self.logger.info("📋 Extrayendo categorías de 'X Nº DE FABRICANTE'...")
 
-            fabricante_selector = '#listado3 #tabla_lista table tbody tr td a'
-            fabricante_elements = await self.page.query_selector_all(fabricante_selector)
+            fabricante_selector = "#listado3 #tabla_lista table tbody tr td a"
+            fabricante_elements = await self.page.query_selector_all(
+                fabricante_selector
+            )
 
             for element in fabricante_elements:
                 try:
                     category_name = await element.text_content()
                     category_name = category_name.strip() if category_name else ""
 
-                    href = await element.get_attribute('href')
+                    href = await element.get_attribute("href")
 
                     if category_name and href:
-                        if not href.startswith('http'):
+                        if not href.startswith("http"):
                             base_url = "https://ecommerce.noriegavanzulli.cl/b2b/"
                             category_url = base_url + href
                         else:
                             category_url = href
 
-                        categories.append({
-                            "name": category_name,
-                            "external_id": category_name,
-                            "url": category_url,
-                            "type": "fabricante"  # Tipo de categoría
-                        })
+                        categories.append(
+                            {
+                                "name": category_name,
+                                "external_id": category_name,
+                                "url": category_url,
+                                "type": "fabricante",  # Tipo de categoría
+                            }
+                        )
 
                         self.logger.info(f"  ✓ {category_name} (fabricante)")
 
@@ -290,11 +303,17 @@ class NoriegaCategoriesComponent(CategoriesComponent):
             await self.update_progress(f"Categorías extraídas: {len(categories)}", 70)
 
             self.logger.info(f"✅ Total de categorías extraídas: {len(categories)}")
-            self.logger.info(f"   - Por medida: {sum(1 for c in categories if c.get('type') == 'medida')}")
-            self.logger.info(f"   - Por fabricante: {sum(1 for c in categories if c.get('type') == 'fabricante')}")
+            self.logger.info(
+                f"   - Por medida: {sum(1 for c in categories if c.get('type') == 'medida')}"
+            )
+            self.logger.info(
+                f"   - Por fabricante: {sum(1 for c in categories if c.get('type') == 'fabricante')}"
+            )
 
             # 💾 Guardar categorías en la base de datos
-            await self.update_progress("Guardando categorías en la base de datos...", 80)
+            await self.update_progress(
+                "Guardando categorías en la base de datos...", 80
+            )
             self.logger.info("💾 Guardando categorías en la base de datos...")
 
             from app.models import Category, Importer
@@ -313,14 +332,22 @@ class NoriegaCategoriesComponent(CategoriesComponent):
             await self.db.execute(
                 select(Category).where(Category.importer_id == importer.id)
             )
-            existing_categories = (await self.db.execute(
-                select(Category).where(Category.importer_id == importer.id)
-            )).scalars().all()
+            existing_categories = (
+                (
+                    await self.db.execute(
+                        select(Category).where(Category.importer_id == importer.id)
+                    )
+                )
+                .scalars()
+                .all()
+            )
 
             for cat in existing_categories:
                 await self.db.delete(cat)
 
-            self.logger.info(f"🗑️  Eliminadas {len(existing_categories)} categorías antiguas")
+            self.logger.info(
+                f"🗑️  Eliminadas {len(existing_categories)} categorías antiguas"
+            )
 
             # Crear nuevas categorías
             saved_count = 0
@@ -328,30 +355,38 @@ class NoriegaCategoriesComponent(CategoriesComponent):
                 try:
                     # Crear slug del nombre
                     import re
-                    slug = re.sub(r'[^a-z0-9]+', '-', cat_data['name'].lower()).strip('-')
+
+                    slug = re.sub(r"[^a-z0-9]+", "-", cat_data["name"].lower()).strip(
+                        "-"
+                    )
 
                     category = Category(
                         importer_id=importer.id,
-                        name=cat_data['name'],
+                        name=cat_data["name"],
                         slug=slug,
-                        url=cat_data['url'],
-                        external_id=cat_data['external_id'],
-                        product_count=0  # Se actualizará al importar productos
+                        url=cat_data["url"],
+                        external_id=cat_data["external_id"],
+                        product_count=0,  # Se actualizará al importar productos
                     )
 
                     self.db.add(category)
                     saved_count += 1
 
                 except Exception as e:
-                    self.logger.warning(f"⚠️ Error guardando categoría {cat_data['name']}: {e}")
+                    self.logger.warning(
+                        f"⚠️ Error guardando categoría {cat_data['name']}: {e}"
+                    )
                     continue
 
             # Commit de todas las categorías
             await self.db.commit()
-            self.logger.info(f"✅ {saved_count} categorías guardadas en la base de datos")
+            self.logger.info(
+                f"✅ {saved_count} categorías guardadas en la base de datos"
+            )
 
             # Actualizar last_sync_at del importador
             from datetime import datetime
+
             importer.last_sync_at = datetime.now()
             await self.db.commit()
 
@@ -374,7 +409,7 @@ class NoriegaCategoriesComponent(CategoriesComponent):
 class NoriegaProductsComponent(ProductsComponent):
     """
     Componente para extraer productos de Noriega
-    
+
     Respeta la configuración del importador:
     - products_per_category: Límite máximo de productos por categoría
     - scraping_speed_ms: Delay entre cada producto (en milisegundos)
@@ -396,11 +431,11 @@ class NoriegaProductsComponent(ProductsComponent):
         self.context = context
         self.categories = categories
         self.config = config or {}
-        
+
         # Configuración con valores por defecto
-        self.products_per_category = self.config.get('products_per_category', 100)
-        self.scraping_speed_ms = self.config.get('scraping_speed_ms', 1000)
-        
+        self.products_per_category = self.config.get("products_per_category", 100)
+        self.scraping_speed_ms = self.config.get("scraping_speed_ms", 1000)
+
         self.logger.info(f"⚙️ Configuración cargada:")
         self.logger.info(f"   - Límite por categoría: {self.products_per_category}")
         self.logger.info(f"   - Velocidad: {self.scraping_speed_ms}ms entre productos")

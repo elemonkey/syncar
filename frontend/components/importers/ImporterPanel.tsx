@@ -14,15 +14,12 @@ interface ImporterPanelProps {
 type Phase = "categories" | "products";
 
 export function ImporterPanel({ importerId }: ImporterPanelProps) {
-  const [phase, setPhase] = useState<Phase>("categories");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [showingProducts, setShowingProducts] = useState(false);
   const categoriesImporterRef = useRef<CategoriesImporterRef>(null);
 
   const handleCategoriesImported = (categoryIds: string[]) => {
     setSelectedCategories(categoryIds);
-    if (categoryIds.length > 0) {
-      setPhase("products");
-    }
   };
 
   const handleImportCategoriesClick = () => {
@@ -31,47 +28,53 @@ export function ImporterPanel({ importerId }: ImporterPanelProps) {
     }
   };
 
+  const handleImportProductsClick = () => {
+    if (selectedCategories.length > 0) {
+      setShowingProducts(true);
+    }
+  };
+
   return (
     <div className="bg-gray-800/50 backdrop-blur rounded-lg border border-gray-700 p-6">
-      {/* Phase Selector */}
+      {/* Action Buttons */}
       <div className="flex space-x-4 mb-6 border-b border-gray-700 pb-4">
         <button
-          onClick={() => {
-            setPhase("categories");
-            handleImportCategoriesClick();
-          }}
-          className={`
-            px-4 py-2 rounded-lg font-medium transition-colors
-            ${
-              phase === "categories"
-                ? "bg-blue-500 text-white"
-                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-            }
-          `}
+          onClick={handleImportCategoriesClick}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2"
         >
-          📋 Importar Categorías
+          <span>📋</span>
+          <span>Importar Categorías</span>
         </button>
         <button
-          onClick={() => setPhase("products")}
+          onClick={handleImportProductsClick}
           disabled={selectedCategories.length === 0}
           className={`
-            px-4 py-2 rounded-lg font-medium transition-colors
+            px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2
             ${
-              phase === "products"
-                ? "bg-blue-500 text-white"
-                : selectedCategories.length === 0
-                ? "bg-gray-800 text-gray-600 cursor-not-allowed"
-                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              selectedCategories.length > 0
+                ? "bg-green-500 hover:bg-green-600 text-white"
+                : "bg-gray-700 text-gray-500 cursor-not-allowed"
             }
           `}
         >
-          📦 Importar Productos{" "}
-          {selectedCategories.length > 0 && `(${selectedCategories.length})`}
+          <span>📦</span>
+          <span>
+            Importar Productos{" "}
+            {selectedCategories.length > 0 && `(${selectedCategories.length})`}
+          </span>
         </button>
+        {showingProducts && (
+          <button
+            onClick={() => setShowingProducts(false)}
+            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors"
+          >
+            ← Volver a Categorías
+          </button>
+        )}
       </div>
 
       {/* Content */}
-      {phase === "categories" ? (
+      {!showingProducts ? (
         <CategoriesImporter
           ref={categoriesImporterRef}
           importerId={importerId}
