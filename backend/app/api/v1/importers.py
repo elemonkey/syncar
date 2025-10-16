@@ -23,6 +23,8 @@ class ImporterConfigSchema(BaseModel):
     password: str
     color: str
     enabled: bool
+    categoryLimit: int = 100  # Límite de productos por categoría
+    productsPerMinute: int = 60  # Velocidad de importación
 
 
 class ConfigsRequest(BaseModel):
@@ -127,6 +129,13 @@ async def get_configs(db: AsyncSession = Depends(get_db)):
     # Convertir a formato esperado por el frontend
     configs_list = []
     for config in configs:
+        # Convertir scraping_speed_ms a productos por minuto
+        # Si speed es 1000ms (1 seg/producto) = 60 productos/minuto
+        # Formula: products_per_minute = 60000 / scraping_speed_ms
+        products_per_minute = 60
+        if config.scraping_speed_ms and config.scraping_speed_ms > 0:
+            products_per_minute = int(60000 / config.scraping_speed_ms)
+        
         configs_list.append({
             "id": config.importer.name.lower() if config.importer else str(config.importer_id),
             "name": config.importer.name if config.importer else "Unknown",
@@ -134,7 +143,9 @@ async def get_configs(db: AsyncSession = Depends(get_db)):
             "username": config.credentials.get("username", "") if config.credentials else "",
             "password": config.credentials.get("password", "") if config.credentials else "",
             "color": "blue",  # Default color
-            "enabled": config.is_active
+            "enabled": config.is_active,
+            "categoryLimit": config.products_per_category,
+            "productsPerMinute": products_per_minute
         })
 
     return {"configs": configs_list}
@@ -185,16 +196,27 @@ async def save_configs(
                 "password": config_data.password
             }
 
+            # Convertir productos por minuto a milisegundos por producto
+            # Si products_per_minute es 60 = 1000ms por producto
+            # Formula: scraping_speed_ms = 60000 / products_per_minute
+            scraping_speed_ms = 1000  # Default: 1 segundo por producto
+            if config_data.productsPerMinute > 0:
+                scraping_speed_ms = int(60000 / config_data.productsPerMinute)
+
             if importer_config:
                 # Actualizar configuración existente
                 importer_config.credentials = credentials
                 importer_config.is_active = config_data.enabled
+                importer_config.products_per_category = config_data.categoryLimit
+                importer_config.scraping_speed_ms = scraping_speed_ms
             else:
                 # Crear nueva configuración
                 importer_config = ImporterConfig(
                     importer_id=importer.id,
                     credentials=credentials,
-                    is_active=config_data.enabled
+                    is_active=config_data.enabled,
+                    products_per_category=config_data.categoryLimit,
+                    scraping_speed_ms=scraping_speed_ms
                 )
                 db.add(importer_config)
 
