@@ -374,6 +374,10 @@ class NoriegaCategoriesComponent(CategoriesComponent):
 class NoriegaProductsComponent(ProductsComponent):
     """
     Componente para extraer productos de Noriega
+    
+    Respeta la configuración del importador:
+    - products_per_category: Límite máximo de productos por categoría
+    - scraping_speed_ms: Delay entre cada producto (en milisegundos)
     """
 
     def __init__(
@@ -385,11 +389,21 @@ class NoriegaProductsComponent(ProductsComponent):
         page: Page,
         context: Any,
         categories: List[str],
+        config: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(importer_name, job_id, db, browser)
         self.page = page
         self.context = context
         self.categories = categories
+        self.config = config or {}
+        
+        # Configuración con valores por defecto
+        self.products_per_category = self.config.get('products_per_category', 100)
+        self.scraping_speed_ms = self.config.get('scraping_speed_ms', 1000)
+        
+        self.logger.info(f"⚙️ Configuración cargada:")
+        self.logger.info(f"   - Límite por categoría: {self.products_per_category}")
+        self.logger.info(f"   - Velocidad: {self.scraping_speed_ms}ms entre productos")
 
     async def execute(self) -> Dict[str, Any]:
         """

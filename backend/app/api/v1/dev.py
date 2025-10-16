@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from playwright.async_api import async_playwright
+from typing import List
 import uuid
 
 from app.core.database import get_db
@@ -188,6 +189,194 @@ async def dev_import_categories(
                 # El navegador se cerrará automáticamente al salir del context manager
                 logger.info("🔒 Cerrando navegador...")
 
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error general: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{importer_name}/import-products")
+async def dev_import_products(
+    importer_name: str,
+    selected_categories: List[str],
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    🔧 MODO DESARROLLO: Importa productos con navegador visible
+    
+    Este endpoint ejecuta el scraping de productos de forma síncrona con el
+    navegador visible para que puedas monitorear el proceso en tiempo real.
+    
+    Aplica la configuración del importador:
+    - Límite de productos por categoría
+    - Velocidad de importación (delay entre productos)
+    
+    ⚠️ Solo para desarrollo - El navegador permanece abierto
+    """
+    from app.importers.noriega import NoriegaProductsComponent
+    
+    job_id = str(uuid.uuid4())
+    
+    logger.info(f"🔧 DEV MODE: Iniciando importación de productos: {importer_name} | Job ID: {job_id}")
+    logger.info(f"📋 Categorías seleccionadas: {selected_categories}")
+    
+    try:
+        # Obtener importador y configuración
+        result = await db.execute(
+            select(Importer)
+            .options(joinedload(Importer.config))
+            .where(Importer.name == importer_name.upper())
+        )
+        importer = result.unique().scalar_one_or_none()
+        
+        if not importer:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Importador '{importer_name}' no encontrado"
+            )
+            
+        if not importer.config:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Configuración no encontrada para '{importer_name}'"
+            )
+        
+        credentials = importer.config.credentials or {}
+        
+        # Preparar configuración
+        config = {
+            'products_per_category': importer.config.products_per_category,
+            'scraping_speed_ms': importer.config.scraping_speed_ms,
+        }
+        
+        logger.info(f"⚙️ Configuración cargada:")
+        logger.info(f"   - Límite por categoría: {config['products_per_category']}")
+        logger.info(f"   - Delay entre productos: {config['scraping_speed_ms']}ms")
+        
+        # Crear job en la base de datos
+        job = ImportJob(
+            job_id=job_id,
+            importer_id=importer.id,
+            job_type=JobType.PRODUCTS,
+            status=JobStatus.RUNNING
+        )
+        db.add(job)
+        await db.commit()
+        
+        # Ejecutar scraping con navegador VISIBLE
+        async with async_playwright() as p:
+            logger.info("🌐 Lanzando Safari (WebKit) en modo visible...")
+            browser = await p.webkit.launch(
+                headless=False,  # ✅ Navegador visible
+                slow_mo=500      # Ralentizar 500ms entre acciones
+            )
+            
+            page = None
+            context = None
+            
+            try:
+                if importer_name.upper() == "NORIEGA":
+                    logger.info("🔧 Ejecutando componente de Noriega")
+                    
+                    # Paso 1: Autenticación
+                    from app.importers.noriega import NoriegaAuthComponent
+                    auth_component = NoriegaAuthComponent(
+                        importer_name=importer_name,
+                        job_id=job_id,
+                        db=db,
+                        browser=browser,
+                        credentials=credentials,
+                        headless=False
+                    )
+                    auth_result = await auth_component.execute()
+                    
+                    page = auth_result.get('page')
+                    context = auth_result.get('context')
+                    
+                    if not auth_result['success']:
+                        logger.error("❌ Autenticación fallida")
+                        job.status = JobStatus.FAILED
+                        job.result = {
+                            'success': False,
+                            'message': auth_result.get('message', ''),
+                            'error': auth_result.get('error')
+                        }
+                        await db.commit()
+                        
+                        # Mantener navegador abierto para inspección
+                        logger.info("🔍 Navegador abierto por 60 segundos para inspección...")
+                        import asyncio
+                        await asyncio.sleep(60)
+                        
+                        return {
+                            "success": False,
+                            "job_id": job_id,
+                            "error": auth_result.get('error'),
+                            "message": "Revisa el navegador que se abrió para ver qué salió mal"
+                        }
+                    
+                    logger.info("✅ Autenticación exitosa, iniciando extracción de productos...")
+                    
+                    # Paso 2: Extracción de productos
+                    products_component = NoriegaProductsComponent(
+                        importer_name=importer_name,
+                        job_id=job_id,
+                        db=db,
+                        browser=browser,
+                        page=page,
+                        context=context,
+                        categories=selected_categories,
+                        config=config
+                    )
+                    products_result = await products_component.execute()
+                    
+                    # Actualizar job
+                    job.status = JobStatus.COMPLETED if products_result['success'] else JobStatus.FAILED
+                    job.result = products_result
+                    job.progress = 100
+                    await db.commit()
+                    
+                    logger.info(f"✅ Importación de productos completada: {job_id}")
+                    
+                    # Mantener navegador abierto para inspección
+                    logger.info("🔍 Navegador permanecerá abierto por 30 segundos...")
+                    import asyncio
+                    await asyncio.sleep(30)
+                    
+                    return {
+                        "success": True,
+                        "job_id": job_id,
+                        "products": products_result.get('products', []),
+                        "total": products_result.get('total', 0),
+                        "message": "Importación de productos completada exitosamente."
+                    }
+                    
+                else:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Modo desarrollo no implementado para '{importer_name}' aún"
+                    )
+                    
+            except Exception as e:
+                logger.error(f"❌ Error en scraping: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                
+                job.status = JobStatus.FAILED
+                job.error_message = str(e)
+                await db.commit()
+                
+                # Mantener navegador abierto para debug
+                logger.info("🔍 Navegador abierto por 30 segundos para debug...")
+                import asyncio
+                await asyncio.sleep(30)
+                
+                raise HTTPException(status_code=500, detail=str(e))
+                
+            finally:
+                logger.info("🔒 Cerrando navegador...")
+                
     except HTTPException:
         raise
     except Exception as e:
