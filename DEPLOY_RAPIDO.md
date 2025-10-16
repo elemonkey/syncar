@@ -1,10 +1,51 @@
 # 🚀 DEPLOY RÁPIDO - SYNCAR 2.0
 
-## 📦 Archivo preparado: `syncar2.0-deploy.tar.gz`
+## ⚡ OPCIÓN 1: Git (RECOMENDADO) - 5 minutos
+
+### Paso 1: Crear repositorio en GitHub
+1. Ve a https://github.com/new
+2. Nombre: `syncar2.0`
+3. **Marca como PRIVADO** �
+4. NO agregues README ni .gitignore
+5. Click "Create repository"
+
+### Paso 2: Conectar y subir código
+
+```bash
+cd /Users/maxberrios/Desktop/REPUESTOS/SYNCAR2.0
+git remote add origin https://github.com/TU_USUARIO/syncar2.0.git
+git push -u origin main
+```
+
+*(Te pedirá usuario y token - crea token en https://github.com/settings/tokens)*
+
+### Paso 3: Deploy en servidor
+
+```bash
+ssh root@45.14.194.85
+curl -fsSL https://get.docker.com | sh
+apt install -y docker-compose-plugin git
+cd /opt
+git clone https://github.com/TU_USUARIO/syncar2.0.git syncar
+cd syncar
+cp .env.production .env
+chmod +x scripts/*.sh
+./scripts/deploy.sh
+```
+
+**📚 Guía completa:** `docs/DEPLOY_GIT.md`
 
 ---
 
-## PASO 1: Subir al servidor (desde tu Mac)
+## 🔄 OPCIÓN 2: SCP Directo (MÁS RÁPIDO) - 3 pasos
+
+**Nota:** Solo para testing, no recomendado para producción.
+
+### �📦 Archivo preparado: `syncar2.0-deploy.tar.gz`
+
+---
+
+### PASO 1: Subir al servidor (desde tu Mac)
 
 ```bash
 scp /Users/maxberrios/Desktop/REPUESTOS/syncar2.0-deploy.tar.gz root@45.14.194.85:/opt/
