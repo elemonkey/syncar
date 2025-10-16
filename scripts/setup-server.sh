@@ -85,10 +85,10 @@ echo ""
 
 ssh $SERVER_USER@$SERVER_IP "bash -s" << 'ENDSSH'
     set -e
-    
+
     echo "📦 Actualizando paquetes..."
     apt update -qq
-    
+
     echo "🐳 Instalando Docker..."
     if ! command -v docker &> /dev/null; then
         curl -fsSL https://get.docker.com | sh
@@ -98,10 +98,10 @@ ssh $SERVER_USER@$SERVER_IP "bash -s" << 'ENDSSH'
     else
         echo "✅ Docker ya está instalado"
     fi
-    
+
     echo "📦 Instalando dependencias..."
     apt install -y git curl wget htop
-    
+
     # Instalar docker-compose plugin
     if ! docker compose version &> /dev/null; then
         apt install -y docker-compose-plugin
@@ -109,7 +109,7 @@ ssh $SERVER_USER@$SERVER_IP "bash -s" << 'ENDSSH'
     else
         echo "✅ Docker Compose ya está instalado"
     fi
-    
+
     echo ""
     echo "Versiones instaladas:"
     docker --version
@@ -127,17 +127,17 @@ echo ""
 
 ssh $SERVER_USER@$SERVER_IP "bash -s" << 'ENDSSH'
     set -e
-    
+
     PROJECT_DIR="/opt/import-app"
-    
+
     # Crear directorio si no existe
     if [ ! -d "$PROJECT_DIR" ]; then
         echo "📁 Creando directorio $PROJECT_DIR..."
         mkdir -p $PROJECT_DIR
     fi
-    
+
     cd $PROJECT_DIR
-    
+
     # Clonar repositorio
     if [ ! -d ".git" ]; then
         echo "📥 Clonando repositorio..."
@@ -148,7 +148,7 @@ ssh $SERVER_USER@$SERVER_IP "bash -s" << 'ENDSSH'
         echo "🔄 Actualizando..."
         git pull origin main
     fi
-    
+
     echo ""
     echo "📊 Estado del repositorio:"
     git log --oneline -3
@@ -165,10 +165,10 @@ echo ""
 # Copiar .env.production como .env
 ssh $SERVER_USER@$SERVER_IP "bash -s" << 'ENDSSH'
     set -e
-    
+
     PROJECT_DIR="/opt/import-app"
     cd $PROJECT_DIR
-    
+
     if [ ! -f ".env" ]; then
         echo "📝 Creando archivo .env..."
         if [ -f ".env.production" ]; then
@@ -182,7 +182,7 @@ ssh $SERVER_USER@$SERVER_IP "bash -s" << 'ENDSSH'
     else
         echo "✅ Archivo .env ya existe"
     fi
-    
+
     # Hacer scripts ejecutables
     echo "🔧 Configurando permisos de scripts..."
     chmod +x scripts/*.sh

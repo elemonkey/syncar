@@ -18,39 +18,39 @@ jobs:
       matrix:
         python-version: ['3.11']
         node-version: ['20']
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-      
+
       # Backend tests
       - name: 🐍 Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      
+
       - name: 📦 Install Python dependencies
         run: |
           cd backend
           pip install -r requirements.txt
           pip install pytest pytest-asyncio
-      
+
       - name: 🧪 Run Python tests
         run: |
           cd backend
           pytest -v || echo "Tests not implemented yet"
-      
+
       # Frontend tests
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-      
+
       - name: 📦 Install Node dependencies
         run: |
           cd frontend
           npm ci || npm install
-      
+
       - name: 🧪 Run Node tests
         run: |
           cd frontend
@@ -64,24 +64,24 @@ jobs:
     permissions:
       contents: read
       packages: write
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-      
+
       - name: 🏷️ Generate version tag
         id: version
         run: |
           SHORT_SHA=$(git rev-parse --short HEAD)
           echo "tag=v$(date +%Y.%m.%d)-${SHORT_SHA}" >> $GITHUB_OUTPUT
-      
+
       - name: 🔐 Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: 🏗️ Build and push backend image
         uses: docker/build-push-action@v5
         with:
@@ -91,7 +91,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ steps.version.outputs.tag }}
-      
+
       - name: 🏗️ Build and push frontend image
         uses: docker/build-push-action@v5
         with:
@@ -109,34 +109,35 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-      
+
       - name: 🚀 Deploy to production server
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ""
           script: |
             cd /opt/import-app
-            
+
             # Pull latest code
             git pull origin main
-            
+
             # Pull latest Docker images
             docker-compose -f docker-compose.prod.yml pull
-            
+
             # Restart services (zero-downtime)
             docker-compose -f docker-compose.prod.yml up -d --no-deps backend frontend celery-worker
-            
+
             # Clean up old images
             docker image prune -f
-            
+
             echo "✅ Deployment completed successfully"
-      
+
       - name: 🔔 Notify deployment status
         if: always()
         run: |
@@ -148,7 +149,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: deploy
     if: always()
-    
+
     steps:
       - name: 🧹 Clean up old images
         run: echo "Cleanup completed"
