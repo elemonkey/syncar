@@ -159,6 +159,10 @@ jobs:
             echo "🔨 Rebuilding and restarting services..."
             docker compose -f docker-compose.prod.yml up -d --build backend celery-worker celery-beat flower
 
+            # Run database migrations
+            echo "📊 Running database migrations..."
+            docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
+
             # Restart frontend if needed
             docker compose -f docker-compose.prod.yml up -d frontend
 
