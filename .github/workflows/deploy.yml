@@ -141,16 +141,35 @@ jobs:
             cd /opt/import-app
 
             # Pull latest code
+            echo "📥 Pulling latest code..."
             git pull origin main
 
-            # Pull latest Docker images
-            docker-compose -f docker-compose.prod.yml pull
+            # Ensure correct DATABASE_URL format (asyncpg for async operations)
+            echo "🔧 Verificando DATABASE_URL..."
+            if ! grep -q "postgresql+asyncpg://" .env.production; then
+              echo "⚠️ Corrigiendo DATABASE_URL a postgresql+asyncpg..."
+              sed -i 's|DATABASE_URL=postgresql://|DATABASE_URL=postgresql+asyncpg://|' .env.production
+            fi
+            if grep -q "@db:" .env.production; then
+              echo "⚠️ Corrigiendo hostname de db a postgres..."
+              sed -i 's|@db:|@postgres:|' .env.production
+            fi
 
-            # Restart services (zero-downtime)
-            docker-compose -f docker-compose.prod.yml up -d --no-deps backend frontend celery-worker
+            # Rebuild and restart services (rebuild if requirements changed)
+            echo "🔨 Rebuilding and restarting services..."
+            docker compose -f docker-compose.prod.yml up -d --build backend celery-worker celery-beat flower
+
+            # Restart frontend if needed
+            docker compose -f docker-compose.prod.yml up -d frontend
 
             # Clean up old images
+            echo "🧹 Cleaning up old images..."
             docker image prune -f
+
+            # Show status
+            echo ""
+            echo "📊 Estado de servicios:"
+            docker compose -f docker-compose.prod.yml ps
 
             echo "✅ Deployment completed successfully"
           ENDSSH
