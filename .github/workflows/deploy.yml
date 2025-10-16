@@ -137,6 +137,10 @@ jobs:
             docker image prune -f
 
             echo "✅ Deployment completed successfully"
+      - name: 🔍 Debug SSH Key
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > test_key
+          ssh-keygen -lf test_key
 
       - name: 🔔 Notify deployment status
         if: always()
