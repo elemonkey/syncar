@@ -163,8 +163,9 @@ jobs:
             echo "📊 Running database migrations..."
             docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
 
-            # Restart frontend if needed
-            docker compose -f docker-compose.prod.yml up -d frontend
+            # Rebuild and restart frontend (always rebuild to get latest changes)
+            echo "🎨 Rebuilding frontend..."
+            docker compose -f docker-compose.prod.yml up -d --build frontend
 
             # Clean up old images
             echo "🧹 Cleaning up old images..."
