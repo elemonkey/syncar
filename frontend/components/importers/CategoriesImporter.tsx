@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import { Toast } from "@/components/Toast";
 
 interface CategoriesImporterProps {
   importerId: string;
@@ -28,6 +29,10 @@ export const CategoriesImporter = forwardRef<
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [loadingFromDB, setLoadingFromDB] = useState(true);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
   // Cargar categorías desde la BD al montar el componente
   const loadCategoriesFromDB = async () => {
@@ -106,16 +111,18 @@ export const CategoriesImporter = forwardRef<
         await loadCategoriesFromDB();
 
         const count = data.saved || data.total || 0;
-        alert(
-          `✅ Importación completada!\n\nSe guardaron ${count} categorías en la base de datos\n\n${
+        setToast({
+          type: "success",
+          message: `Importación completada!\n\nSe guardaron ${count} categorías en la base de datos\n\n${
             data.message || ""
-          }`
-        );
+          }`,
+        });
       } else if (data.job_id) {
         // Modo producción: job en background
-        alert(
-          `✅ Importación iniciada en background\n\nJob ID: ${data.job_id}\n\n🔍 El proceso se ejecuta en segundo plano.`
-        );
+        setToast({
+          type: "info",
+          message: `Importación iniciada en background\n\nJob ID: ${data.job_id}\n\n🔍 El proceso se ejecuta en segundo plano.`,
+        });
         // TODO: Implementar polling del job status
       } else {
         throw new Error("Respuesta inesperada del servidor");
@@ -152,6 +159,16 @@ export const CategoriesImporter = forwardRef<
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+          duration={5000}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

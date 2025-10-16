@@ -1,11 +1,12 @@
 """
 Configuración central de la aplicación
 """
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+
 import os
 from pathlib import Path
+from typing import List
 
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Buscar el archivo .env en el directorio raíz del proyecto
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
@@ -19,7 +20,7 @@ class Settings(BaseSettings):
         env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="ignore"
+        extra="ignore",
     )
 
     # General
@@ -89,7 +90,9 @@ class Settings(BaseSettings):
             self.DATABASE_URL = f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
         if not self.REDIS_URL:
-            self.REDIS_URL = f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+            self.REDIS_URL = (
+                f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+            )
 
         if not self.CELERY_BROKER_URL:
             self.CELERY_BROKER_URL = self.REDIS_URL

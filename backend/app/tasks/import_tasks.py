@@ -1,24 +1,26 @@
 """
 Tareas de Celery para importación
 """
-import uuid
+
 import asyncio
+import uuid
 from typing import List
+
+from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.core.logger import logger
+from app.importers.noriega import NoriegaAuthComponent, NoriegaCategoriesComponent
+from app.importers.orchestrator import ImportOrchestrator
+from app.models import Importer, ImportJob, JobStatus, JobType
+from app.tasks.celery_app import celery_app
 from celery import Task
 from playwright.async_api import async_playwright
 from sqlalchemy import select
 
-from app.tasks.celery_app import celery_app
-from app.core.database import AsyncSessionLocal
-from app.core.logger import logger
-from app.core.config import settings
-from app.models import ImportJob, JobStatus, JobType, Importer
-from app.importers.orchestrator import ImportOrchestrator
-from app.importers.noriega import NoriegaAuthComponent, NoriegaCategoriesComponent
-
 
 class DatabaseTask(Task):
     """Tarea base con conexión a base de datos"""
+
     _db = None
 
     @property
@@ -34,6 +36,7 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
         try:
             # Obtener importador y sus credenciales
             from sqlalchemy.orm import joinedload
+
             result = await db.execute(
                 select(Importer)
                 .options(joinedload(Importer.config))
@@ -43,11 +46,11 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
 
             if not importer:
                 logger.error(f"❌ Importador no encontrado: {importer_name}")
-                return {'success': False, 'error': 'Importer not found'}
+                return {"success": False, "error": "Importer not found"}
 
             if not importer.config:
                 logger.error(f"❌ Configuración no encontrada para: {importer_name}")
-                return {'success': False, 'error': 'Configuration not found'}
+                return {"success": False, "error": "Configuration not found"}
 
             credentials = importer.config.credentials or {}
 
@@ -55,7 +58,7 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
                 job_id=job_id,
                 importer_id=importer.id,
                 job_type=JobType.CATEGORIES,
-                status=JobStatus.RUNNING
+                status=JobStatus.RUNNING,
             )
             db.add(job)
             await db.commit()
@@ -65,7 +68,9 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
                 # Usar configuración de headless del settings (True en producción, False en desarrollo)
                 browser = await p.chromium.launch(
                     headless=settings.HEADLESS,
-                    slow_mo=500 if not settings.HEADLESS else 0  # Ralentizar solo en modo visible
+                    slow_mo=500
+                    if not settings.HEADLESS
+                    else 0,  # Ralentizar solo en modo visible
                 )
 
                 page = None
@@ -83,22 +88,22 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
                             db=db,
                             browser=browser,
                             credentials=credentials,
-                            headless=settings.HEADLESS
+                            headless=settings.HEADLESS,
                         )
                         auth_result = await auth_component.execute()
 
                         # Guardar referencias a page y context
-                        page = auth_result.get('page')
-                        context = auth_result.get('context')
+                        page = auth_result.get("page")
+                        context = auth_result.get("context")
 
                         # Crear resultado sin objetos no serializables
                         clean_auth_result = {
-                            'success': auth_result['success'],
-                            'message': auth_result.get('message', ''),
-                            'error': auth_result.get('error')
+                            "success": auth_result["success"],
+                            "message": auth_result.get("message", ""),
+                            "error": auth_result.get("error"),
                         }
 
-                        if not auth_result['success']:
+                        if not auth_result["success"]:
                             logger.error("❌ Autenticación fallida")
                             job.status = JobStatus.FAILED
                             job.result = clean_auth_result
@@ -106,7 +111,10 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
 
                             # Mantener navegador abierto 60 segundos
                             import asyncio
-                            logger.info("🔍 Navegador abierto por 60 segundos para inspección...")
+
+                            logger.info(
+                                "🔍 Navegador abierto por 60 segundos para inspección..."
+                            )
                             await asyncio.sleep(60)
 
                             return clean_auth_result
@@ -118,7 +126,7 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
                             db=db,
                             browser=browser,
                             page=page,
-                            context=context
+                            context=context,
                         )
                         result = await categories_component.execute()
 
@@ -128,12 +136,14 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
                             importer_name=importer_name,
                             job_id=job_id,
                             db=db,
-                            browser=browser
+                            browser=browser,
                         )
                         result = await orchestrator.import_categories()
 
                     # Actualizar job con resultado
-                    job.status = JobStatus.COMPLETED if result['success'] else JobStatus.FAILED
+                    job.status = (
+                        JobStatus.COMPLETED if result["success"] else JobStatus.FAILED
+                    )
                     job.result = result
                     job.progress = 100
                     await db.commit()
@@ -142,7 +152,10 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
 
                     # Mantener navegador abierto por 120 segundos para inspección
                     import asyncio
-                    logger.info("🔍 Navegador permanecerá abierto por 120 segundos para inspección...")
+
+                    logger.info(
+                        "🔍 Navegador permanecerá abierto por 120 segundos para inspección..."
+                    )
                     await asyncio.sleep(120)
 
                     return result
@@ -150,16 +163,20 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
                 except Exception as e:
                     logger.error(f"Error en importación: {e}")
                     import traceback
+
                     logger.error(traceback.format_exc())
 
-                    if 'job' in locals():
+                    if "job" in locals():
                         job.status = JobStatus.FAILED
                         job.error_message = str(e)
                         await db.commit()
 
                     # Mantener navegador abierto 60 segundos en caso de error
                     import asyncio
-                    logger.info("🔍 Navegador abierto por 60 segundos para inspección de error...")
+
+                    logger.info(
+                        "🔍 Navegador abierto por 60 segundos para inspección de error..."
+                    )
                     await asyncio.sleep(60)
 
                     raise
@@ -169,14 +186,14 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
 
             # Marcar job como fallido si fue creado
             try:
-                if 'job' in locals():
+                if "job" in locals():
                     job.status = JobStatus.FAILED
                     job.error_message = str(e)
                     await db.commit()
             except:
                 pass
 
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
 
 @celery_app.task(bind=True, name="import_categories")
@@ -191,7 +208,9 @@ def import_categories_task(self, importer_name: str) -> dict:
         Dict con el resultado de la importación
     """
     job_id = str(uuid.uuid4())
-    logger.info(f"🚀 Iniciando tarea de importación de categorías: {importer_name} | Job ID: {job_id}")
+    logger.info(
+        f"🚀 Iniciando tarea de importación de categorías: {importer_name} | Job ID: {job_id}"
+    )
 
     # Crear un nuevo event loop para esta tarea
     loop = asyncio.new_event_loop()
@@ -200,9 +219,15 @@ def import_categories_task(self, importer_name: str) -> dict:
         return loop.run_until_complete(_run_import_categories(importer_name, job_id))
     finally:
         loop.close()
-async def _run_import_products(importer_name: str, selected_categories: List[str], job_id: str) -> dict:
+
+
+async def _run_import_products(
+    importer_name: str, selected_categories: List[str], job_id: str
+) -> dict:
     """Función async interna para importar productos"""
-    logger.info(f"🚀 Iniciando tarea de importación de productos: {importer_name} | Job ID: {job_id}")
+    logger.info(
+        f"🚀 Iniciando tarea de importación de productos: {importer_name} | Job ID: {job_id}"
+    )
     logger.info(f"Categorías: {selected_categories}")
 
     async with AsyncSessionLocal() as db:
@@ -215,14 +240,14 @@ async def _run_import_products(importer_name: str, selected_categories: List[str
 
             if not importer:
                 logger.error(f"❌ Importador no encontrado: {importer_name}")
-                return {'success': False, 'error': 'Importer not found'}
+                return {"success": False, "error": "Importer not found"}
 
             job = ImportJob(
                 job_id=job_id,
                 importer_id=importer.id,
                 job_type=JobType.PRODUCTS,
                 status=JobStatus.RUNNING,
-                params={'selected_categories': selected_categories}
+                params={"selected_categories": selected_categories},
             )
             db.add(job)
             await db.commit()
@@ -236,13 +261,15 @@ async def _run_import_products(importer_name: str, selected_categories: List[str
                         importer_name=importer_name,
                         job_id=job_id,
                         db=db,
-                        browser=browser
+                        browser=browser,
                     )
 
                     result = await orchestrator.import_products(selected_categories)
 
                     # Actualizar job con resultado
-                    job.status = JobStatus.COMPLETED if result['success'] else JobStatus.FAILED
+                    job.status = (
+                        JobStatus.COMPLETED if result["success"] else JobStatus.FAILED
+                    )
                     job.result = result
                     job.progress = 100
                     await db.commit()
@@ -262,11 +289,13 @@ async def _run_import_products(importer_name: str, selected_categories: List[str
             job.error_message = str(e)
             await db.commit()
 
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
 
 @celery_app.task(bind=True, name="import_products")
-def import_products_task(self, importer_name: str, selected_categories: List[str]) -> dict:
+def import_products_task(
+    self, importer_name: str, selected_categories: List[str]
+) -> dict:
     """
     Tarea de Celery para importar productos
 
@@ -283,6 +312,8 @@ def import_products_task(self, importer_name: str, selected_categories: List[str
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        return loop.run_until_complete(_run_import_products(importer_name, selected_categories, job_id))
+        return loop.run_until_complete(
+            _run_import_products(importer_name, selected_categories, job_id)
+        )
     finally:
         loop.close()
