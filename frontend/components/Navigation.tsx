@@ -1,21 +1,21 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export function Navigation() {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   const navItems = [
-    { href: '/', label: 'Inicio', icon: '🏠' },
-    { href: '/importers', label: 'Importadores', icon: '🔄' },
-    { href: '/catalogo', label: 'Catálogo', icon: '📦' },
-    { href: '/configuracion', label: 'Configuración', icon: '⚙️' },
-  ]
+    { href: "/", label: "Inicio", icon: "🏠" },
+    { href: "/catalogo", label: "Catálogo", icon: "�" },
+    { href: "/importers", label: "Importadores", icon: "�" },
+    { href: "/configuracion", label: "Configuración", icon: "⚙️" },
+  ];
 
   // No mostrar navegación en la página de inicio
-  if (pathname === '/') {
-    return null
+  if (pathname === "/") {
+    return null;
   }
 
   return (
@@ -31,23 +31,25 @@ export function Navigation() {
           {/* Navigation Items */}
           <div className="flex space-x-1">
             {navItems.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+              const isActive =
+                pathname === item.href || pathname.startsWith(item.href + "/");
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={`
                     px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2
-                    ${isActive
-                      ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/50'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    ${
+                      isActive
+                        ? "bg-blue-500 text-white shadow-lg shadow-blue-500/50"
+                        : "text-gray-400 hover:text-white hover:bg-gray-800"
                     }
                   `}
                 >
                   <span>{item.icon}</span>
                   <span>{item.label}</span>
                 </Link>
-              )
+              );
             })}
           </div>
 
@@ -64,5 +66,5 @@ export function Navigation() {
         </div>
       </div>
     </nav>
-  )
+  );
 }
