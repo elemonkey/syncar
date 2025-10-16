@@ -120,7 +120,7 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-          
+
       - name: 🔍 Debug SSH Key
         run: |
           echo "--- FINGERPRINT DE LA CLAVE ---"
@@ -130,23 +130,28 @@ jobs:
           echo "--- ÚLTIMAS 5 LÍNEAS DE LA CLAVE ---"
           tail -5 ~/.ssh/deploy_key
 
+      - name: 🧪 Test SSH Connection
+        run: |
+          echo "--- PROBANDO CONEXIÓN SSH CON DEBUG ---"
+          ssh -vvv -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "echo '✅ SSH connection successful'" 2>&1 | tail -30
+
       - name: 🚀 Deploy to production server
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'ENDSSH'
             cd /opt/import-app
-            
+
             # Pull latest code
             git pull origin main
-            
+
             # Pull latest Docker images
             docker-compose -f docker-compose.prod.yml pull
-            
+
             # Restart services (zero-downtime)
             docker-compose -f docker-compose.prod.yml up -d --no-deps backend frontend celery-worker
-            
+
             # Clean up old images
             docker image prune -f
-            
+
             echo "✅ Deployment completed successfully"
           ENDSSH
 
