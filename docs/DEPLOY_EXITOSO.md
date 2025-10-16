@@ -1,7 +1,7 @@
 # 🎉 Deploy Exitoso - SYNCAR 2.0
 
-**Fecha:** 16 de Octubre de 2025  
-**Dominio:** https://syncar.cl  
+**Fecha:** 16 de Octubre de 2025
+**Dominio:** https://syncar.cl
 **Servidor:** 45.14.194.85 (Contabo VPS)
 
 ---
@@ -13,7 +13,7 @@
   - URL: https://syncar.cl
   - Puerto interno: 3000
   - Estado: ✅ Funcionando
-  
+
 - **Backend**: FastAPI 0.110.0
   - API: https://syncar.cl/api/v1/
   - Health Check: http://45.14.194.85:8000/health
@@ -24,17 +24,17 @@
 - **PostgreSQL**: 16-alpine
   - Puerto: 5432 (interno)
   - Estado: ✅ Healthy
-  
+
 - **Redis**: 7-alpine
   - Puerto: 6379 (interno)
   - Estado: ✅ Healthy
-  
-- **Celery Workers**: 
+
+- **Celery Workers**:
   - Estado: ⚠️ Running (unhealthy - health check estricto)
-  
+
 - **Celery Beat** (Scheduler):
   - Estado: ⚠️ Running (unhealthy - health check estricto)
-  
+
 - **Flower** (Monitor de Celery):
   - URL: http://45.14.194.85:5555
   - Estado: ✅ Funcionando
@@ -44,11 +44,11 @@
   - Reverse proxy para frontend y backend
   - HTTP → HTTPS redirect configurado
   - Estado: ✅ Funcionando
-  
+
 - **BIND9 DNS Server**:
   - Nameservers: ns1.syncar.cl, ns2.syncar.cl
   - Estado: ✅ Respondiendo correctamente
-  
+
 - **Let's Encrypt SSL**:
   - Certificado ECDSA válido hasta: 14 de Enero de 2026
   - Dominios cubiertos: syncar.cl, www.syncar.cl
@@ -355,9 +355,9 @@ journalctl -f
 
 ## 📞 Contacto y Soporte
 
-**Desarrollador**: Max Berrios  
-**Email**: admin@syncar.cl  
-**Repositorio**: https://github.com/elemonkey/syncar  
+**Desarrollador**: Max Berrios
+**Email**: admin@syncar.cl
+**Repositorio**: https://github.com/elemonkey/syncar
 **Servidor**: Contabo VPS (support@contabo.com)
 
 ---

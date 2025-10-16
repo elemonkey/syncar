@@ -11,7 +11,8 @@ from sqlalchemy import select
 from app.tasks.celery_app import celery_app
 from app.core.database import AsyncSessionLocal
 from app.core.logger import logger
-from app.models import ImportJob, JobStatus, JobType, Importer, ImporterConfig
+from app.core.config import settings
+from app.models import ImportJob, JobStatus, JobType, Importer
 from app.importers.orchestrator import ImportOrchestrator
 from app.importers.noriega import NoriegaAuthComponent, NoriegaCategoriesComponent
 
@@ -59,12 +60,12 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
             db.add(job)
             await db.commit()
 
-            # Ejecutar importación con Playwright (MODO VISIBLE para desarrollo)
+            # Ejecutar importación con Playwright
             async with async_playwright() as p:
-                # headless=False para ver el navegador en acción
+                # Usar configuración de headless del settings (True en producción, False en desarrollo)
                 browser = await p.chromium.launch(
-                    headless=False,
-                    slow_mo=500  # Ralentizar acciones para que puedas ver
+                    headless=settings.HEADLESS,
+                    slow_mo=500 if not settings.HEADLESS else 0  # Ralentizar solo en modo visible
                 )
 
                 page = None
@@ -82,7 +83,7 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
                             db=db,
                             browser=browser,
                             credentials=credentials,
-                            headless=False
+                            headless=settings.HEADLESS
                         )
                         auth_result = await auth_component.execute()
 

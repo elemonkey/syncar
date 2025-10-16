@@ -30,7 +30,6 @@ class Settings(BaseSettings):
 
     # Scraping
     SCRAPING_MODE: str = "dev"  # "dev" o "prod"
-    PLAYWRIGHT_HEADLESS: bool = False  # False en dev para ver el navegador
 
     # Database
     POSTGRES_HOST: str = "localhost"
@@ -60,7 +59,7 @@ class Settings(BaseSettings):
 
     # Playwright
     PLAYWRIGHT_BROWSERS_PATH: str = "/ms-playwright"
-    HEADLESS: bool = True
+    HEADLESS: bool = True  # True en producción (sin UI), False en desarrollo local
 
     # Logging
     LOG_LEVEL: str = "INFO"
