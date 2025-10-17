@@ -115,10 +115,13 @@ async def start_product_import(
 
     # Generar job_id único para el seguimiento
     import uuid
+
     job_id = str(uuid.uuid4())
-    
+
     # Iniciar tarea de Celery (pasar nombre en mayúsculas y job_id)
-    task = import_products_task.delay(importer_name.upper(), selected_categories, job_id)
+    task = import_products_task.delay(
+        importer_name.upper(), selected_categories, job_id
+    )
 
     return {
         "message": "Product import started",
