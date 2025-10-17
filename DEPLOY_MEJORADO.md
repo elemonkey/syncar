@@ -172,7 +172,7 @@ npm run dev
 ## ✅ Checklist Pre-Deploy
 
 - [ ] Backend dev funciona correctamente
-- [ ] Frontend dev funciona correctamente  
+- [ ] Frontend dev funciona correctamente
 - [ ] Modal persistente funciona
 - [ ] Importación funciona
 - [ ] Cambios commiteados a git
