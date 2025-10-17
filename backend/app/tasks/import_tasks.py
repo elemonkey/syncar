@@ -318,10 +318,18 @@ async def _run_import_products(
                             return job.result
 
                         # Obtener configuración del importador
-                        # products_per_category está en el modelo Importer (job.importer_id)
+                        # products_per_category está en ImporterConfig (importer.config)
                         config = {
-                            "products_per_category": importer_with_config.products_per_category,
-                            "scraping_speed_ms": 1000,
+                            "products_per_category": (
+                                importer_with_config.config.products_per_category
+                                if importer_with_config.config
+                                else None
+                            ),
+                            "scraping_speed_ms": (
+                                importer_with_config.config.scraping_speed_ms
+                                if importer_with_config.config
+                                else 1000
+                            ),
                         }
 
                         # Paso 2: Extracción de productos
