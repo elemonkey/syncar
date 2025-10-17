@@ -37,20 +37,24 @@ class EmasaCategoriesComponent(CategoriesComponent):
         try:
             await self.update_progress("Iniciando extracción de categorías...", 30)
 
-            # URL de la página de categorías (ajustar según EMASA)
-            # Nota: Verificar si EMASA tiene una página específica de categorías
-            categories_url = "https://www.repuestos-emasa.cl/categorias"
-
-            self.logger.info(f"🔗 Navegando a página de categorías: {categories_url}")
+            # URL de la página base después del login (buscador googleo)
+            # No necesitamos navegar, ya estamos en esta página después del auth
+            current_url = self.page.url
+            self.logger.info(f"📍 Página actual: {current_url}")
             
-            try:
-                await self.page.goto(
-                    categories_url, wait_until="networkidle", timeout=60000
-                )
-                self.logger.info("✅ Página de categorías cargada")
-            except Exception as e:
-                self.logger.warning(f"⚠️ Error navegando a {categories_url}: {e}")
-                self.logger.info("📍 Intentando extraer desde página actual...")
+            # Si no estamos en buscador_googleo, navegar ahí
+            if "buscador_googleo.jsp" not in current_url:
+                categories_url = "https://ecommerce.emasa.cl/b2b/buscador_googleo.jsp"
+                self.logger.info(f"🔗 Navegando a página de buscador: {categories_url}")
+                try:
+                    await self.page.goto(
+                        categories_url, wait_until="networkidle", timeout=60000
+                    )
+                    self.logger.info("✅ Página de buscador cargada")
+                except Exception as e:
+                    self.logger.warning(f"⚠️ Error navegando a {categories_url}: {e}")
+            else:
+                self.logger.info("✅ Ya estamos en la página de buscador")
 
             # 📸 Screenshot de la página de categorías
             try:
@@ -62,74 +66,52 @@ class EmasaCategoriesComponent(CategoriesComponent):
 
             await self.update_progress("Extrayendo categorías...", 50)
 
-            # NOTA: Los selectores a continuación son genéricos y deben ajustarse
-            # según la estructura HTML real de EMASA
-            
-            self.logger.info("📋 Extrayendo categorías del sitio...")
+            # EMASA: categorías desde el dropdown "Nuestras Líneas" en el menú lateral
+            self.logger.info("📋 Extrayendo categorías desde 'Nuestras Líneas'...")
 
-            # Intentar varios selectores posibles para categorías
-            possible_selectors = [
-                ".category-list a",  # Clase común
-                ".categories a",
-                "nav.categories a",
-                ".menu-categories a",
-                "ul.category-menu li a",
-                ".product-categories a",
-            ]
+            # El dropdown está en el menú lateral izquierdo, bajo el título "Nuestras Líneas"
+            # Selector: <li role="presentation"><a href="resultado_busqueda.jsp?cod_familia=...&nombreMarca=...">
+            categories_selector = 'ul.dropdown-menu li[role="presentation"] a[href*="cod_familia"]'
+            category_elements = await self.page.query_selector_all(categories_selector)
+
+            self.logger.info(f"🔍 Encontrados {len(category_elements)} elementos de categoría")
 
             categories = []
-            categories_found = False
-
-            for selector in possible_selectors:
+            for element in category_elements:
                 try:
-                    category_elements = await self.page.query_selector_all(selector)
-                    
-                    if category_elements and len(category_elements) > 0:
-                        self.logger.info(f"✅ Encontradas {len(category_elements)} categorías con selector: {selector}")
-                        
-                        for element in category_elements:
-                            try:
-                                # Extraer texto (nombre de categoría)
-                                category_name = await element.text_content()
-                                category_name = category_name.strip() if category_name else ""
+                    # Extraer texto (nombre de categoría)
+                    category_name = await element.text_content()
+                    category_name = category_name.strip() if category_name else ""
 
-                                # Extraer href (URL de la categoría)
-                                href = await element.get_attribute("href")
+                    # Extraer href (URL de la categoría)
+                    href = await element.get_attribute("href")
 
-                                if category_name and href:
-                                    # Construir URL completa
-                                    if not href.startswith("http"):
-                                        base_url = "https://www.repuestos-emasa.cl"
-                                        category_url = base_url + href
-                                    else:
-                                        category_url = href
+                    if category_name and href:
+                        # Construir URL completa
+                        if not href.startswith("http"):
+                            base_url = "https://ecommerce.emasa.cl/b2b/"
+                            category_url = base_url + href
+                        else:
+                            category_url = href
 
-                                    # Evitar duplicados
-                                    if not any(cat["name"] == category_name for cat in categories):
-                                        categories.append(
-                                            {
-                                                "name": category_name,
-                                                "external_id": category_name,  # Usar el nombre como ID
-                                                "url": category_url,
-                                                "type": "categoria",  # Tipo de categoría
-                                            }
-                                        )
+                        # Extraer cod_familia del href para usarlo como external_id
+                        import re
+                        cod_familia_match = re.search(r'cod_familia=([^&]+)', href)
+                        external_id = cod_familia_match.group(1) if cod_familia_match else category_name
 
-                                        self.logger.info(f"  ✓ {category_name}")
+                        categories.append(
+                            {
+                                "name": category_name,
+                                "external_id": external_id,  # Usar cod_familia como ID
+                                "url": category_url,
+                                "type": "linea",  # Tipo de categoría
+                            }
+                        )
+                        self.logger.info(f"  ✓ {category_name} ({external_id})")
 
-                            except Exception as e:
-                                self.logger.warning(f"⚠️ Error extrayendo categoría individual: {e}")
-                                continue
-                        
-                        categories_found = True
-                        break  # Si encontramos categorías, no seguir probando otros selectores
-                        
                 except Exception as e:
+                    self.logger.warning(f"⚠️ Error extrayendo categoría: {e}")
                     continue
-
-            if not categories_found:
-                self.logger.warning("⚠️ No se encontraron categorías con los selectores probados")
-                self.logger.info("💡 Revisa el screenshot en /tmp/emasa_categorias.png para identificar el selector correcto")
 
             await self.update_progress("Guardando categorías en base de datos...", 70)
 
@@ -178,9 +160,7 @@ class EmasaCategoriesComponent(CategoriesComponent):
 
             await self.db.commit()
 
-            await self.update_progress(
-                f"✅ {saved_count} categorías guardadas", 100
-            )
+            await self.update_progress(f"✅ {saved_count} categorías guardadas", 100)
 
             self.logger.info(f"✅ Total de categorías extraídas: {len(categories)}")
             self.logger.info(f"✅ Categorías guardadas en BD: {saved_count}")
@@ -195,6 +175,7 @@ class EmasaCategoriesComponent(CategoriesComponent):
         except Exception as e:
             self.logger.error(f"❌ Error extrayendo categorías: {e}")
             import traceback
+
             self.logger.error(traceback.format_exc())
 
             await self.update_progress(f"❌ Error: {str(e)}", 100)
