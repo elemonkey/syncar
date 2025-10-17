@@ -5,8 +5,8 @@ import {
   CategoriesImporter,
   CategoriesImporterRef,
 } from "./CategoriesImporter";
-import { Toast } from "@/components/Toast";
 import { useImportJob } from "@/contexts/ImportJobContext";
+import { useToast } from "@/contexts/ToastContext";
 
 interface ImporterPanelProps {
   importerId: string;
@@ -15,11 +15,8 @@ interface ImporterPanelProps {
 export function ImporterPanel({ importerId }: ImporterPanelProps) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [importingProducts, setImportingProducts] = useState(false);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error" | "info";
-  } | null>(null);
   const categoriesImporterRef = useRef<CategoriesImporterRef>(null);
+  const { showToast } = useToast();
 
   // Usar el contexto del job
   const { startJob } = useImportJob();
@@ -76,35 +73,24 @@ export function ImporterPanel({ importerId }: ImporterPanelProps) {
       // Iniciar el job en el contexto global
       startJob(data.job_id, "products");
 
-      setToast({
-        type: "info",
-        message: `Importación iniciada\n\n🌐 Safari se abrirá automáticamente\n📊 Sigue el progreso en el modal`,
-      });
+      showToast(
+        `Importación iniciada\n\n🌐 Safari se abrirá automáticamente\n📊 Sigue el progreso en el modal`,
+        "info"
+      );
 
       setImportingProducts(false);
     } catch (err) {
       console.error("❌ Error:", err);
-      setToast({
-        type: "error",
-        message:
-          err instanceof Error ? err.message : "Error al importar productos",
-      });
+      showToast(
+        err instanceof Error ? err.message : "Error al importar productos",
+        "error"
+      );
       setImportingProducts(false);
     }
   };
 
   return (
     <div className="bg-gray-800/50 backdrop-blur rounded-lg border border-gray-700 p-6">
-      {/* Toast Notification */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-          duration={5000}
-        />
-      )}
-
       {/* Action Buttons - Sin glows/shadows, iconos outline */}
       <div className="flex space-x-4 mb-6 border-b border-gray-700 pb-4">
         <button

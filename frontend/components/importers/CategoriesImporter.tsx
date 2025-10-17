@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Toast } from "@/components/Toast";
 import { useAutoRefresh, emitDataChanged } from "@/lib/hooks/useAutoRefresh";
+import { useToast } from "@/contexts/ToastContext";
 
 interface CategoriesImporterProps {
   importerId: string;
@@ -31,10 +31,7 @@ export const CategoriesImporter = forwardRef<
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [loadingFromDB, setLoadingFromDB] = useState(true);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error" | "info";
-  } | null>(null);
+  const { showToast } = useToast();
 
   // Cargar categorías y selección desde la BD al montar el componente
   const loadCategoriesFromDB = async () => {
@@ -134,18 +131,18 @@ export const CategoriesImporter = forwardRef<
         emitDataChanged();
 
         const count = data.saved || data.total || 0;
-        setToast({
-          type: "success",
-          message: `Importación completada!\n\nSe guardaron ${count} categorías en la base de datos\n\n${
+        showToast(
+          `Importación completada!\n\nSe guardaron ${count} categorías en la base de datos\n\n${
             data.message || ""
           }`,
-        });
+          "success"
+        );
       } else if (data.job_id) {
         // Modo producción: job en background
-        setToast({
-          type: "info",
-          message: `Importación iniciada en background\n\nJob ID: ${data.job_id}\n\n🔍 El proceso se ejecuta en segundo plano.`,
-        });
+        showToast(
+          `Importación iniciada en background\n\nJob ID: ${data.job_id}\n\n🔍 El proceso se ejecuta en segundo plano.`,
+          "info"
+        );
         // TODO: Implementar polling del job status
       } else {
         throw new Error("Respuesta inesperada del servidor");
@@ -201,24 +198,18 @@ export const CategoriesImporter = forwardRef<
       // Emitir evento de cambio de datos
       emitDataChanged();
 
-      setToast({
-        type: "success",
-        message: `Selección guardada!\n\n${selectedIds.size} categorías seleccionadas para ${importerId}`,
-      });
+      showToast(
+        `Selección guardada!\n\n${selectedIds.size} categorías seleccionadas para ${importerId}`,
+        "success"
+      );
     } catch (err) {
-      setToast({
-        type: "error",
-        message: "Error al guardar la selección de categorías",
-      });
+      showToast("Error al guardar la selección de categorías", "error");
     }
   };
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) {
-      setToast({
-        type: "error",
-        message: "No hay categorías seleccionadas para eliminar",
-      });
+      showToast("No hay categorías seleccionadas para eliminar", "error");
       return;
     }
 
@@ -269,16 +260,16 @@ export const CategoriesImporter = forwardRef<
       // Emitir evento de cambio de datos
       emitDataChanged();
 
-      setToast({
-        type: "success",
-        message: `${data.deleted_count} categorías eliminadas correctamente`,
-      });
+      showToast(
+        `${data.deleted_count} categorías eliminadas correctamente`,
+        "success"
+      );
     } catch (err) {
       console.error("❌ Error:", err);
-      setToast({
-        type: "error",
-        message: err instanceof Error ? err.message : "Error al eliminar categorías",
-      });
+      showToast(
+        err instanceof Error ? err.message : "Error al eliminar categorías",
+        "error"
+      );
     } finally {
       setLoading(false);
     }
@@ -292,16 +283,6 @@ export const CategoriesImporter = forwardRef<
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-          duration={5000}
-        />
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

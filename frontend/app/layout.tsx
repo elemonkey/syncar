@@ -3,7 +3,9 @@ import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/Navigation";
 import { ImportJobProvider } from "@/contexts/ImportJobContext";
+import { ToastProvider } from "@/contexts/ToastContext";
 import PersistentImportModal from "@/components/PersistentImportModal";
+import { GlobalToastContainer } from "@/components/GlobalToastContainer";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -24,11 +26,14 @@ export default function RootLayout({
   return (
     <html lang="es" className="dark">
       <body className={montserrat.className}>
-        <ImportJobProvider>
-          <Navigation />
-          {children}
-          <PersistentImportModal />
-        </ImportJobProvider>
+        <ToastProvider>
+          <ImportJobProvider>
+            <Navigation />
+            {children}
+            <PersistentImportModal />
+            <GlobalToastContainer />
+          </ImportJobProvider>
+        </ToastProvider>
       </body>
     </html>
   );

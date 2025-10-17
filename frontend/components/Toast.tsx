@@ -74,7 +74,7 @@ export function Toast({ message, type, onClose, duration = 3000 }: ToastProps) {
   };
 
   return (
-    <div className="fixed top-4 right-6 z-50 animate-in slide-in-from-right duration-300">
+    <div className="animate-in slide-in-from-right duration-300">
       <div
         className={`
         p-4 rounded border backdrop-blur-sm min-w-[300px] max-w-[400px]
