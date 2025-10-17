@@ -9,7 +9,11 @@ from typing import List
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.logger import logger
-from app.importers.noriega import NoriegaAuthComponent, NoriegaCategoriesComponent, NoriegaProductsComponent
+from app.importers.noriega import (
+    NoriegaAuthComponent,
+    NoriegaCategoriesComponent,
+    NoriegaProductsComponent,
+)
 from app.importers.orchestrator import ImportOrchestrator
 from app.models import Importer, ImportJob, JobStatus, JobType
 from app.tasks.celery_app import celery_app
@@ -272,13 +276,20 @@ async def _run_import_products(
 
                         # Obtener credenciales
                         from sqlalchemy.orm import joinedload
+
                         result_config = await db.execute(
                             select(Importer)
                             .options(joinedload(Importer.config))
                             .where(Importer.name == importer_name.upper())
                         )
-                        importer_with_config = result_config.unique().scalar_one_or_none()
-                        credentials = importer_with_config.config.credentials or {} if importer_with_config and importer_with_config.config else {}
+                        importer_with_config = (
+                            result_config.unique().scalar_one_or_none()
+                        )
+                        credentials = (
+                            importer_with_config.config.credentials or {}
+                            if importer_with_config and importer_with_config.config
+                            else {}
+                        )
 
                         # Paso 1: Autenticación
                         auth_component = NoriegaAuthComponent(
@@ -309,7 +320,7 @@ async def _run_import_products(
                         # Obtener configuración del importador
                         # products_per_category está en el modelo Importer (job.importer_id)
                         config = {
-                            "products_per_category": importer.products_per_category,
+                            "products_per_category": importer_with_config.products_per_category,
                             "scraping_speed_ms": 1000,
                         }
 
