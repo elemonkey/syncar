@@ -12,8 +12,8 @@ from typing import List
 
 from app.core.database import get_db
 from app.core.logger import logger
-from app.importers.noriega import NoriegaAuthComponent, NoriegaCategoriesComponent
 from app.importers.emasa import EmasaAuthComponent, EmasaCategoriesComponent
+from app.importers.noriega import NoriegaAuthComponent, NoriegaCategoriesComponent
 from app.models import Importer, ImporterType, ImportJob, JobStatus, JobType
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from playwright.async_api import async_playwright
@@ -269,9 +269,9 @@ async def dev_import_categories(importer_name: str, db: AsyncSession = Depends(g
 
                     logger.info(f"✅ Importación completada: {job_id}")
 
-                    # ⚠️ MANTENER NAVEGADOR ABIERTO INDEFINIDAMENTE PARA DESARROLLO
+                    # Mantener navegador abierto brevemente para inspección
                     logger.info("=" * 80)
-                    logger.info("🔧 MODO DESARROLLO - NAVEGADOR PERMANECERÁ ABIERTO")
+                    logger.info("🔧 MODO DESARROLLO - Navegador abierto por 10 segundos")
                     logger.info("=" * 80)
                     logger.info("")
                     logger.info(
@@ -279,26 +279,14 @@ async def dev_import_categories(importer_name: str, db: AsyncSession = Depends(g
                     )
                     logger.info("🏠 Navegador en la página de categorías")
                     logger.info("")
-                    logger.info("📋 AHORA PUEDES:")
-                    logger.info("   1. Inspeccionar las categorías en el navegador")
-                    logger.info("   2. Verificar la estructura de las tablas")
-                    logger.info("   3. Navegar a una categoría de prueba")
-                    logger.info("   4. Desarrollar selectores si es necesario")
-                    logger.info("")
-                    logger.info("⏸️  El navegador NO se cerrará automáticamente")
-                    logger.info("🛑 Presiona Ctrl+C en esta terminal cuando termines")
-                    logger.info("")
+                    logger.info("⏳ Esperando 10 segundos antes de cerrar...")
                     logger.info("=" * 80)
 
-                    # Esperar indefinidamente hasta Ctrl+C
+                    # Esperar brevemente para poder inspeccionar
                     import asyncio
+                    await asyncio.sleep(10)
 
-                    try:
-                        logger.info("⏳ Esperando... (Ctrl+C para cerrar)")
-                        while True:
-                            await asyncio.sleep(3600)  # Esperar 1 hora, repetir
-                    except KeyboardInterrupt:
-                        logger.info("\n⚠️  Ctrl+C detectado - Cerrando navegador...")
+                    logger.info("✅ Proceso completado, cerrando navegador...")
 
                     return {
                         "success": True,
@@ -442,27 +430,18 @@ async def _execute_dev_import_products(
 
                         logger.info(f"✅ Importación de productos completada: {job_id}")
 
-                        # Mantener navegador abierto
+                        # Mantener navegador abierto brevemente para inspección
                         logger.info("=" * 80)
-                        logger.info(
-                            "🔧 MODO DESARROLLO - NAVEGADOR PERMANECERÁ ABIERTO"
-                        )
+                        logger.info("🔧 MODO DESARROLLO - Navegador abierto por 10 segundos")
                         logger.info("=" * 80)
-                        logger.info("⏸️  El navegador NO se cerrará automáticamente")
-                        logger.info(
-                            "🛑 Presiona Ctrl+C en esta terminal cuando termines"
-                        )
+                        logger.info("⏳ Esperando 10 segundos antes de cerrar...")
                         logger.info("=" * 80)
 
-                        # Esperar hasta Ctrl+C
+                        # Esperar brevemente para poder inspeccionar
                         import asyncio
+                        await asyncio.sleep(10)
 
-                        try:
-                            logger.info("⏳ Esperando... (Ctrl+C para cerrar)")
-                            while True:
-                                await asyncio.sleep(3600)
-                        except KeyboardInterrupt:
-                            logger.info("\n⚠️  Ctrl+C detectado - Cerrando navegador...")
+                        logger.info("✅ Proceso completado, cerrando navegador...")
 
                 except Exception as e:
                     logger.error(f"❌ Error en scraping: {e}")
