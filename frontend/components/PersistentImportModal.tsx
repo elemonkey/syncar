@@ -2,12 +2,16 @@
 
 import { useImportJob } from "@/contexts/ImportJobContext";
 import { useEffect, useState } from "react";
-import { showToast } from "./Toast";
+import { Toast } from "./Toast";
 
 export default function PersistentImportModal() {
   const { currentJob, updateJob, closeJob, toggleMinimize, cancelJob } = useImportJob();
   const [elapsedTime, setElapsedTime] = useState("00:00");
   const [isCancelling, setIsCancelling] = useState(false);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
   // Polling para actualizar el progreso
   useEffect(() => {
@@ -159,10 +163,16 @@ export default function PersistentImportModal() {
       closeJob();
       
       // Mostrar toast de confirmación
-      showToast("Tarea cancelada", "info");
+      setToast({
+        message: "Tarea cancelada",
+        type: "info",
+      });
     } catch (error) {
       console.error("Error al cancelar job:", error);
-      showToast("Error al cancelar la tarea", "error");
+      setToast({
+        message: "Error al cancelar la tarea",
+        type: "error",
+      });
     } finally {
       setIsCancelling(false);
     }
@@ -543,6 +553,15 @@ export default function PersistentImportModal() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </>
   );
