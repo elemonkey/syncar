@@ -29,7 +29,7 @@ class EmasaAuthComponent(AuthComponent):
         super().__init__(importer_name, job_id, db, browser)
         self.credentials = credentials
         self.headless = headless
-        self.base_url = "https://www.repuestos-emasa.cl/login"
+        self.base_url = "https://ecommerce.emasa.cl/b2b/loginvip.jsp"
 
     async def execute(self) -> Dict[str, Any]:
         """
@@ -60,15 +60,18 @@ class EmasaAuthComponent(AuthComponent):
             # 🔑 Completar formulario de login con credenciales de la BD
             logger.info("📝 Completando formulario de login...")
 
-            # NOTA: Ajustar selectores según el HTML real de EMASA
-            # Campos típicos: email/username y password
+            # EMASA usa la misma estructura que Noriega: RUT, Usuario, Contraseña
             
-            # Campo Email/Usuario (ajustar selector según EMASA)
-            await page.fill('input[name="email"]', self.credentials.get("email", ""))
-            logger.info(f"✅ Email completado: {self.credentials.get('email', '')}")
+            # Campo RUT
+            await page.fill('input[name="trut"]', str(self.credentials.get("rut", "")))
+            logger.info(f"✅ RUT completado: {self.credentials.get('rut', '')}")
 
-            # Campo Contraseña (ajustar selector según EMASA)
-            await page.fill('input[name="password"]', self.credentials.get("password", ""))
+            # Campo Usuario
+            await page.fill('input[name="tuser"]', self.credentials.get("username", ""))
+            logger.info(f"✅ Usuario completado: {self.credentials.get('username', '')}")
+
+            # Campo Contraseña
+            await page.fill('input[name="tpass"]', self.credentials.get("password", ""))
             logger.info("✅ Contraseña completada: ****")
 
             # 📸 Screenshot DESPUÉS de completar formulario
@@ -79,10 +82,10 @@ class EmasaAuthComponent(AuthComponent):
             # 🚀 Hacer clic en el botón de login
             logger.info("🚀 Haciendo clic en botón Ingresar...")
 
-            # Hacer clic y esperar navegación (ajustar selector según EMASA)
+            # Hacer clic y esperar navegación simultáneamente
             try:
                 async with page.expect_navigation(timeout=30000):
-                    await page.click('button[type="submit"]')
+                    await page.click('input[name="Ingresar"]')
                 logger.info("✅ Navegación completada después del clic")
             except Exception as e:
                 logger.warning(f"⚠️ Error en navegación: {e}")
