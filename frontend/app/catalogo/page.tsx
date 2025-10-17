@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 
 interface Application {
@@ -61,18 +61,7 @@ export default function CatalogoPage() {
     { id: "emasa", name: "Emasa", abbr: "EM", color: "orange" },
   ];
 
-  useEffect(() => {
-    loadData();
-  }, [selectedImporter, selectedCategory]);
-
-  // Auto-refresh cuando hay cambios en otras partes de la app
-  useAutoRefresh({
-    onRefresh: loadData,
-    enabled: !loading,
-    interval: 5000,
-  });
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const apiUrl =
@@ -104,7 +93,18 @@ export default function CatalogoPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedImporter, selectedCategory]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Auto-refresh cuando hay cambios en otras partes de la app
+  useAutoRefresh({
+    onRefresh: loadData,
+    enabled: !loading,
+    interval: 5000,
+  });
 
   const filteredProducts = products.filter(
     (product) =>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from "react";
 import { useAutoRefresh, emitDataChanged } from "@/lib/hooks/useAutoRefresh";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -34,7 +34,7 @@ export const CategoriesImporter = forwardRef<
   const { showToast } = useToast();
 
   // Cargar categorías y selección desde la BD al montar el componente
-  const loadCategoriesFromDB = async () => {
+  const loadCategoriesFromDB = useCallback(async () => {
     try {
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -64,7 +64,7 @@ export const CategoriesImporter = forwardRef<
     } finally {
       setLoadingFromDB(false);
     }
-  };
+  }, [importerId]);
 
   // Cargar categorías al montar el componente o cuando cambia el importador
   useEffect(() => {
@@ -72,7 +72,7 @@ export const CategoriesImporter = forwardRef<
     setCategories([]);
     setSelectedIds(new Set());
     loadCategoriesFromDB();
-  }, [importerId]);
+  }, [loadCategoriesFromDB]);
 
   // Auto-refresh cuando hay cambios en otras partes de la app
   useAutoRefresh({
