@@ -57,6 +57,38 @@ class EmasaProductsComponent(ProductsComponent):
             self.logger.info("   - Límite por categoría: SIN LÍMITE (scrapeará todos)")
         self.logger.info(f"   - Velocidad: {self.scraping_speed_ms}ms entre productos")
 
+    async def _update_job_result(self, result_data: Dict[str, Any]):
+        """
+        Actualiza el campo result del job con información detallada
+
+        Args:
+            result_data: Diccionario con datos actualizados
+        """
+        from app.models import ImportJob
+        from sqlalchemy import select, update
+
+        try:
+            # Obtener job actual
+            stmt = select(ImportJob).where(ImportJob.job_id == self.job_id)
+            result = await self.db.execute(stmt)
+            job = result.scalar_one_or_none()
+
+            if job:
+                # Merge con el result existente
+                current_result = job.result or {}
+                updated_result = {**current_result, **result_data}
+
+                # Actualizar
+                update_stmt = (
+                    update(ImportJob)
+                    .where(ImportJob.job_id == self.job_id)
+                    .values(result=updated_result)
+                )
+                await self.db.execute(update_stmt)
+                await self.db.commit()
+        except Exception as e:
+            self.logger.error(f"Error actualizando job result: {e}")
+
     async def execute(self) -> Dict[str, Any]:
         """
         Extrae productos de las categorías seleccionadas
@@ -261,6 +293,17 @@ class EmasaProductsComponent(ProductsComponent):
 
                     # Actualizar progreso
                     progress = 20 + (idx / len(products_to_process)) * 60
+                    
+                    # Actualizar job result con información detallada
+                    await self._update_job_result(
+                        {
+                            "total_items": len(products_to_process),
+                            "processed_items": len(products),
+                            "current_item": idx,
+                            "category": category.name,
+                        }
+                    )
+                    
                     await self.update_progress(
                         f"Extrayendo producto {idx}/{len(products_to_process)}...",
                         int(progress),

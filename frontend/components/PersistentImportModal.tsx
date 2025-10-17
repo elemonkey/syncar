@@ -55,22 +55,31 @@ export default function PersistentImportModal() {
           } else if (progress < 90) {
             currentStep = "PASO 3: EXTRACCIÓN";
             // Usar datos reales del backend si están disponibles
-            const totalProducts = data.total_items || 100;
-            const currentItem = data.current_item || 0;
-            const processedProducts = data.processed_items || 0;
+            const totalProducts = data.total_items || data.result?.total_items || 100;
+            const currentItem = data.current_item || data.result?.current_item || 0;
+            const processedProducts = data.processed_items || data.result?.processed_items || 0;
             const currentSku = data.result?.current_sku || "";
+            const categoryName = data.result?.category || "";
+
+            console.log("📊 Datos de extracción:", {
+              totalProducts,
+              currentItem,
+              processedProducts,
+              currentSku,
+              categoryName,
+            });
 
             if (currentItem > 0) {
               // Usar datos reales del backend
               detailedStatus = `Importando producto ${currentItem}/${totalProducts}${
-                currentSku ? ` (${currentSku})` : ""
-              }`;
+                currentSku ? ` - SKU: ${currentSku}` : ""
+              }${categoryName ? ` (${categoryName})` : ""}`;
             } else {
               // Fallback: calcular aproximado
               const estimated = Math.floor(
                 ((progress - 20) / 70) * totalProducts
               );
-              detailedStatus = `Importando producto ${estimated}/${totalProducts}`;
+              detailedStatus = `Procesando productos... ${estimated}/${totalProducts}`;
             }
           } else if (progress < 100) {
             currentStep = "PASO 4: GUARDANDO";
