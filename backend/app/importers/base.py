@@ -92,6 +92,29 @@ class ImporterComponentBase(ABC):
         except Exception as e:
             self.logger.error(f"Error updating progress: {e}")
     
+    async def is_job_cancelled(self) -> bool:
+        """
+        Verifica si el job fue cancelado por el usuario
+        
+        Returns:
+            True si el job está en estado CANCELLED
+        """
+        try:
+            result = await self.db.execute(
+                select(ImportJob).where(ImportJob.job_id == self.job_id)
+            )
+            job = result.scalar_one_or_none()
+            
+            if job and job.status == JobStatus.CANCELLED:
+                self.logger.warning("⚠️ Job cancelado por el usuario")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Error checking job status: {e}")
+            return False
+    
     async def mark_job_status(self, status: JobStatus, error_message: Optional[str] = None):
         """Marca el estado del job"""
         try:

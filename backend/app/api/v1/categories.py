@@ -1,16 +1,22 @@
 """
 Endpoints para categorías
 """
-from typing import Optional
+from typing import List, Optional
 
 from app.core.database import get_db
 from app.models import Category, Importer
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 router = APIRouter()
+
+
+class DeleteCategoriesRequest(BaseModel):
+    category_ids: List[int]
+    importer_id: int
 
 
 @router.get("")
@@ -95,3 +101,52 @@ async def get_category(
         "created_at": category.created_at.isoformat() if category.created_at else None,
         "updated_at": category.updated_at.isoformat() if category.updated_at else None,
     }
+
+
+@router.post("/delete-multiple")
+async def delete_multiple_categories(
+    request: DeleteCategoriesRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Elimina múltiples categorías por sus IDs para un importador específico
+    """
+    if not request.category_ids:
+        raise HTTPException(status_code=400, detail="No se proporcionaron IDs de categorías")
+
+    try:
+        # Verificar que todas las categorías pertenecen al importador especificado
+        result = await db.execute(
+            select(Category).where(
+                Category.id.in_(request.category_ids),
+                Category.importer_id == request.importer_id
+            )
+        )
+        categories_to_delete = result.scalars().all()
+
+        if len(categories_to_delete) != len(request.category_ids):
+            raise HTTPException(
+                status_code=400,
+                detail="Algunas categorías no pertenecen al importador especificado o no existen"
+            )
+
+        # Eliminar las categorías
+        await db.execute(
+            delete(Category).where(
+                Category.id.in_(request.category_ids),
+                Category.importer_id == request.importer_id
+            )
+        )
+        await db.commit()
+
+        return {
+            "success": True,
+            "deleted_count": len(request.category_ids),
+            "message": f"Se eliminaron {len(request.category_ids)} categorías correctamente"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al eliminar categorías: {str(e)}")

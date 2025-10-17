@@ -199,6 +199,72 @@ export const CategoriesImporter = forwardRef<
     }
   };
 
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) {
+      setToast({
+        type: "error",
+        message: "No hay categorías seleccionadas para eliminar",
+      });
+      return;
+    }
+
+    // Confirmar eliminación
+    if (!confirm(`¿Estás seguro de eliminar ${selectedIds.size} categorías?\n\nEsta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
+      // Obtener importer_id actual
+      const importerResponse = await fetch(`${apiUrl}/importers`);
+      const importersData = await importerResponse.json();
+      const currentImporter = importersData.importers.find(
+        (imp: any) => imp.name.toLowerCase() === importerId.toLowerCase()
+      );
+
+      if (!currentImporter) {
+        throw new Error("Importador no encontrado");
+      }
+
+      const response = await fetch(`${apiUrl}/categories/delete-multiple`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          category_ids: Array.from(selectedIds).map(Number),
+          importer_id: currentImporter.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Error al eliminar categorías");
+      }
+
+      const data = await response.json();
+
+      // Recargar categorías
+      await loadCategoriesFromDB();
+      setSelectedIds(new Set());
+
+      setToast({
+        type: "success",
+        message: `${data.deleted_count} categorías eliminadas correctamente`,
+      });
+    } catch (err) {
+      console.error("❌ Error:", err);
+      setToast({
+        type: "error",
+        message: err instanceof Error ? err.message : "Error al eliminar categorías",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Notificar al padre cada vez que cambia la selección (sin guardar en BD)
   useEffect(() => {
     onCategoriesImported(Array.from(selectedIds));
@@ -263,6 +329,27 @@ export const CategoriesImporter = forwardRef<
                 {selectedIds.size === categories.length
                   ? "Deseleccionar todas"
                   : "Seleccionar todas"}
+              </button>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={selectedIds.size === 0}
+                className="bg-red-500 hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded transition-colors flex items-center space-x-2"
+                title={selectedIds.size === 0 ? "Selecciona categorías para eliminar" : "Eliminar categorías seleccionadas"}
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+                <span>Eliminar</span>
               </button>
               <button
                 onClick={handleSaveSelection}

@@ -19,6 +19,7 @@ interface ImportJobContextType {
   updateJob: (updates: Partial<ImportJob>) => void;
   closeJob: () => void;
   toggleMinimize: () => void;
+  cancelJob: () => Promise<void>;
 }
 
 const ImportJobContext = createContext<ImportJobContextType | undefined>(
@@ -86,9 +87,36 @@ export function ImportJobProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const cancelJob = async () => {
+    if (!currentJob) return;
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+      
+      // Llamar al endpoint de cancelación
+      const response = await fetch(`${apiUrl}/dev/cancel/${currentJob.jobId}`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        // Actualizar estado del job a cancelado
+        updateJob({
+          status: "cancelled",
+          progress: 0,
+          currentStep: "CANCELADO",
+          detailedStatus: "Importación cancelada por el usuario",
+        });
+      } else {
+        console.error("Error al cancelar el job");
+      }
+    } catch (error) {
+      console.error("Error cancelando job:", error);
+    }
+  };
+
   return (
     <ImportJobContext.Provider
-      value={{ currentJob, startJob, updateJob, closeJob, toggleMinimize }}
+      value={{ currentJob, startJob, updateJob, closeJob, toggleMinimize, cancelJob }}
     >
       {children}
     </ImportJobContext.Provider>

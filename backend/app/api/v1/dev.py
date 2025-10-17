@@ -580,3 +580,57 @@ async def get_dev_job_status(job_id: str, db: AsyncSession = Depends(get_db)):
         "processed_items": processed_items,
         "current_item": current_item,
     }
+
+
+@router.post("/cancel/{job_id}")
+async def cancel_job(job_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Cancela un job de importación en curso
+    
+    Este endpoint:
+    1. Marca el job como cancelado en la BD
+    2. El navegador se cerrará automáticamente cuando detecte el cambio de status
+    3. Los workers de Playwright limpiarán sus recursos
+    """
+    logger.info(f"🛑 Cancelando job: {job_id}")
+    
+    try:
+        # Buscar el job
+        result = await db.execute(
+            select(ImportJob).where(ImportJob.job_id == job_id)
+        )
+        job = result.scalar_one_or_none()
+        
+        if not job:
+            raise HTTPException(status_code=404, detail="Job no encontrado")
+        
+        # Verificar que esté en un estado cancelable
+        if job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
+            return {
+                "success": False,
+                "message": f"El job ya está en estado: {job.status}",
+                "job_id": job_id,
+                "status": job.status
+            }
+        
+        # Marcar como cancelado
+        job.status = JobStatus.CANCELLED
+        job.progress = 0
+        job.error_message = "Importación cancelada por el usuario"
+        
+        await db.commit()
+        
+        logger.info(f"✅ Job {job_id} marcado como cancelado")
+        
+        return {
+            "success": True,
+            "message": "Job cancelado exitosamente. El navegador se cerrará automáticamente.",
+            "job_id": job_id,
+            "status": "cancelled"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error cancelando job: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

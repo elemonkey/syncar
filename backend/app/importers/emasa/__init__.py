@@ -1,9 +1,10 @@
 """
 Importador EMASA
-Scraper para https://www.repuestos-emasa.cl
+Scraper para https://ecommerce.emasa.cl/b2b/
 
 Este módulo contiene todos los componentes necesarios para importar
 categorías y productos desde el sitio de EMASA.
+Sistema B2B idéntico a Noriega.
 
 Componentes disponibles:
 - EmasaAuthComponent: Autenticación en el sitio

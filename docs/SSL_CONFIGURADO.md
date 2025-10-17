@@ -1,7 +1,7 @@
 # ✅ SSL/HTTPS Configurado Exitosamente
 
-**Fecha**: 16 de octubre de 2025  
-**Dominio**: syncar.cl  
+**Fecha**: 16 de octubre de 2025
+**Dominio**: syncar.cl
 **Servidor**: 45.14.194.85
 
 ---

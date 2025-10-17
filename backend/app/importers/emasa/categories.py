@@ -2,9 +2,9 @@
 Componente de extracción de categorías para EMASA
 """
 
-from typing import Any, Dict
 import re
 import unicodedata
+from typing import Any, Dict
 
 from app.importers.base import CategoriesComponent
 from playwright.async_api import Browser, Page
@@ -81,7 +81,9 @@ class EmasaCategoriesComponent(CategoriesComponent):
             )
             category_elements = await self.page.query_selector_all(categories_selector)
 
-            self.logger.info(f"🔍 Encontrados {len(category_elements)} elementos de categoría (Nuestras Líneas)")
+            self.logger.info(
+                f"🔍 Encontrados {len(category_elements)} elementos de categoría (Nuestras Líneas)"
+            )
 
             # Helper local para generar slugs seguros (no nulos)
             def slugify(text: str) -> str:
@@ -116,7 +118,11 @@ class EmasaCategoriesComponent(CategoriesComponent):
 
                         # Extraer cod_familia del href para usarlo como external_id
                         cod_familia_match = re.search(r"cod_familia=([^&]+)", href)
-                        external_id = cod_familia_match.group(1) if cod_familia_match else category_name
+                        external_id = (
+                            cod_familia_match.group(1)
+                            if cod_familia_match
+                            else category_name
+                        )
 
                         slug = slugify(category_name)
 
@@ -130,7 +136,9 @@ class EmasaCategoriesComponent(CategoriesComponent):
                                 "selected": False,
                             }
                         )
-                        self.logger.info(f"  ✓ {category_name} ({external_id}) -> slug: {slug}")
+                        self.logger.info(
+                            f"  ✓ {category_name} ({external_id}) -> slug: {slug}"
+                        )
 
                 except Exception as e:
                     self.logger.warning(f"⚠️ Error extrayendo categoría: {e}")
@@ -180,7 +188,9 @@ class EmasaCategoriesComponent(CategoriesComponent):
                         slug=cat_data.get("slug") or "categoria",
                         importer_id=importer.id,
                         product_count=cat_data.get("product_count", 0),
-                        selected=cat_data.get("selected", False),  # Por defecto no seleccionada
+                        selected=cat_data.get(
+                            "selected", False
+                        ),  # Por defecto no seleccionada
                     )
                     self.db.add(category)
 

@@ -4,8 +4,9 @@ import { useImportJob } from "@/contexts/ImportJobContext";
 import { useEffect, useState } from "react";
 
 export default function PersistentImportModal() {
-  const { currentJob, updateJob, closeJob, toggleMinimize } = useImportJob();
+  const { currentJob, updateJob, closeJob, toggleMinimize, cancelJob } = useImportJob();
   const [elapsedTime, setElapsedTime] = useState("00:00");
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Polling para actualizar el progreso
   useEffect(() => {
@@ -24,7 +25,7 @@ export default function PersistentImportModal() {
       try {
         const apiUrl =
           process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-        
+
         // Usar endpoint de desarrollo solo en desarrollo, en producción usar el endpoint principal
         const isDev = process.env.NODE_ENV === "development";
         const endpoint = isDev ? "dev/status" : "importers/status";
@@ -141,6 +142,21 @@ export default function PersistentImportModal() {
   const isCompleted = currentJob.status === "completed";
   const isError =
     currentJob.status === "failed" || currentJob.status === "cancelled";
+
+  const handleCancelJob = async () => {
+    if (!confirm("¿Estás seguro de cancelar esta importación?\n\nEsto detendrá todos los procesos de scraping activos.")) {
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      await cancelJob();
+      // Esperar un momento para que el backend procese la cancelación
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   return (
     <>
@@ -466,6 +482,39 @@ export default function PersistentImportModal() {
             </div>
 
             {/* Footer */}
+            {isRunning && (
+              <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t">
+                <button
+                  onClick={handleCancelJob}
+                  disabled={isCancelling}
+                  className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-lg transition-colors font-medium flex items-center gap-2"
+                >
+                  {isCancelling ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      <span>Cancelando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                      <span>Cancelar Importación</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
             {(isCompleted || isError) && (
               <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t">
                 <button

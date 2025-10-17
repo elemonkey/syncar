@@ -70,14 +70,20 @@ class EmasaProductsComponent(ProductsComponent):
             self.logger.info("=" * 80)
             self.logger.info("📦 INICIANDO SCRAPING DE PRODUCTOS - EMASA")
             self.logger.info("=" * 80)
-            self.logger.info(f"📋 Categorías seleccionadas: {len(self.selected_categories)}")
-            
+            self.logger.info(
+                f"📋 Categorías seleccionadas: {len(self.selected_categories)}"
+            )
+
             if self.products_per_category:
-                self.logger.info(f"⚙️  Límite por categoría: {self.products_per_category}")
+                self.logger.info(
+                    f"⚙️  Límite por categoría: {self.products_per_category}"
+                )
             else:
                 self.logger.info("⚙️  Límite por categoría: SIN LÍMITE")
-            
-            self.logger.info(f"⏱️  Velocidad: {self.scraping_speed_ms}ms entre productos")
+
+            self.logger.info(
+                f"⏱️  Velocidad: {self.scraping_speed_ms}ms entre productos"
+            )
             self.logger.info("")
 
             # Obtener las categorías desde la base de datos
@@ -111,11 +117,15 @@ class EmasaProductsComponent(ProductsComponent):
                     category = all_categories.get(cat_id)
 
                     if not category:
-                        self.logger.warning(f"⚠️ Categoría ID {cat_id} no encontrada en BD")
+                        self.logger.warning(
+                            f"⚠️ Categoría ID {cat_id} no encontrada en BD"
+                        )
                         continue
 
                     self.logger.info("=" * 80)
-                    self.logger.info(f"📂 CATEGORÍA {idx}/{len(self.selected_categories)}: {category.name}")
+                    self.logger.info(
+                        f"📂 CATEGORÍA {idx}/{len(self.selected_categories)}: {category.name}"
+                    )
                     self.logger.info(f"   ID: {category.id}")
                     self.logger.info("=" * 80)
 
@@ -137,19 +147,23 @@ class EmasaProductsComponent(ProductsComponent):
 
                     # Extraer productos de esta categoría
                     products = await self._extract_products_from_category(
-                        category=category,
-                        limit=self.products_per_category
+                        category=category, limit=self.products_per_category
                     )
 
                     all_products.extend(products)
                     categories_processed += 1
 
-                    self.logger.info(f"✅ Productos extraídos de {category.name}: {len(products)}")
+                    self.logger.info(
+                        f"✅ Productos extraídos de {category.name}: {len(products)}"
+                    )
                     self.logger.info("")
 
                 except Exception as e:
-                    self.logger.error(f"❌ Error procesando categoría {cat_id_str}: {e}")
+                    self.logger.error(
+                        f"❌ Error procesando categoría {cat_id_str}: {e}"
+                    )
                     import traceback
+
                     self.logger.error(traceback.format_exc())
                     continue
 
@@ -180,6 +194,7 @@ class EmasaProductsComponent(ProductsComponent):
         except Exception as e:
             self.logger.error(f"❌ Error en extracción de productos: {e}")
             import traceback
+
             self.logger.error(traceback.format_exc())
 
             await self.update_progress(f"❌ Error: {str(e)}", 100)
@@ -191,9 +206,7 @@ class EmasaProductsComponent(ProductsComponent):
             }
 
     async def _extract_products_from_category(
-        self,
-        category: Any,
-        limit: Optional[int] = None
+        self, category: Any, limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Extrae productos de una categoría
@@ -209,19 +222,24 @@ class EmasaProductsComponent(ProductsComponent):
 
         try:
             # NOTA: Ajustar selectores según la estructura HTML de EMASA
-            
+
             # Esperar a que carguen los productos
             import asyncio
+
             await asyncio.sleep(2)
 
             # Selector genérico de productos (ajustar según EMASA)
             product_selector = ".product-item, .product-card, .product"
             product_elements = await self.page.query_selector_all(product_selector)
 
-            self.logger.info(f"📦 Productos encontrados en página: {len(product_elements)}")
+            self.logger.info(
+                f"📦 Productos encontrados en página: {len(product_elements)}"
+            )
 
             # Aplicar límite si existe
-            products_to_process = product_elements[:limit] if limit else product_elements
+            products_to_process = (
+                product_elements[:limit] if limit else product_elements
+            )
 
             for idx, element in enumerate(products_to_process, 1):
                 try:
@@ -229,7 +247,7 @@ class EmasaProductsComponent(ProductsComponent):
                     progress = 20 + (idx / len(products_to_process)) * 60
                     await self.update_progress(
                         f"Extrayendo producto {idx}/{len(products_to_process)}...",
-                        int(progress)
+                        int(progress),
                     )
 
                     # Extraer datos del producto (ajustar selectores según EMASA)
@@ -237,7 +255,9 @@ class EmasaProductsComponent(ProductsComponent):
 
                     if product_data:
                         products.append(product_data)
-                        self.logger.info(f"  ✓ [{idx}/{len(products_to_process)}] {product_data.get('name', 'Sin nombre')[:50]}")
+                        self.logger.info(
+                            f"  ✓ [{idx}/{len(products_to_process)}] {product_data.get('name', 'Sin nombre')[:50]}"
+                        )
 
                     # Delay entre productos
                     await asyncio.sleep(self.scraping_speed_ms / 1000.0)
@@ -249,11 +269,14 @@ class EmasaProductsComponent(ProductsComponent):
         except Exception as e:
             self.logger.error(f"❌ Error en _extract_products_from_category: {e}")
             import traceback
+
             self.logger.error(traceback.format_exc())
 
         return products
 
-    async def _extract_product_data(self, element: Any, category: Any) -> Optional[Dict[str, Any]]:
+    async def _extract_product_data(
+        self, element: Any, category: Any
+    ) -> Optional[Dict[str, Any]]:
         """
         Extrae datos de un elemento de producto
 
@@ -268,21 +291,30 @@ class EmasaProductsComponent(ProductsComponent):
         """
         try:
             # Extraer nombre (ajustar selector)
-            name_element = await element.query_selector(".product-name, .product-title, h3, h4")
+            name_element = await element.query_selector(
+                ".product-name, .product-title, h3, h4"
+            )
             name = await name_element.text_content() if name_element else "Sin nombre"
             name = name.strip()
 
             # Extraer SKU/Código (ajustar selector)
-            sku_element = await element.query_selector(".product-sku, .product-code, .sku")
+            sku_element = await element.query_selector(
+                ".product-sku, .product-code, .sku"
+            )
             sku = await sku_element.text_content() if sku_element else ""
             sku = sku.strip()
 
             # Extraer precio (ajustar selector)
-            price_element = await element.query_selector(".product-price, .price, .product-cost")
+            price_element = await element.query_selector(
+                ".product-price, .price, .product-cost"
+            )
             price_text = await price_element.text_content() if price_element else "0"
             # Limpiar precio: eliminar símbolos y convertir a float
             import re
-            price_clean = re.sub(r'[^\d.,]', '', price_text.replace('.', '').replace(',', '.'))
+
+            price_clean = re.sub(
+                r"[^\d.,]", "", price_text.replace(".", "").replace(",", ".")
+            )
             try:
                 price = float(price_clean) if price_clean else 0.0
             except:
@@ -290,19 +322,22 @@ class EmasaProductsComponent(ProductsComponent):
 
             # Extraer URL del producto (ajustar selector)
             link_element = await element.query_selector("a")
-            product_url = await link_element.get_attribute("href") if link_element else ""
+            product_url = (
+                await link_element.get_attribute("href") if link_element else ""
+            )
             if product_url and not product_url.startswith("http"):
-                product_url = f"https://www.repuestos-emasa.cl{product_url}"
+                product_url = f"https://ecommerce.emasa.cl/b2b/{product_url}"
 
             # Extraer imagen (ajustar selector)
             img_element = await element.query_selector("img")
             image_url = await img_element.get_attribute("src") if img_element else ""
             if image_url and not image_url.startswith("http"):
-                image_url = f"https://www.repuestos-emasa.cl{image_url}"
+                image_url = f"https://ecommerce.emasa.cl/b2b/{image_url}"
 
             return {
                 "name": name,
-                "sku": sku or f"EMASA-{category.id}-{hash(name)}",  # SKU generado si no existe
+                "sku": sku
+                or f"EMASA-{category.id}-{hash(name)}",  # SKU generado si no existe
                 "price": price,
                 "url": product_url,
                 "image_url": image_url,
@@ -358,7 +393,9 @@ class EmasaProductsComponent(ProductsComponent):
                         existing_product.stock = product_data["stock"]
                         existing_product.url = product_data.get("url", "")
                         existing_product.image_url = product_data.get("image_url", "")
-                        existing_product.description = product_data.get("description", "")
+                        existing_product.description = product_data.get(
+                            "description", ""
+                        )
                     else:
                         # Crear nuevo producto
                         product = Product(
@@ -377,7 +414,9 @@ class EmasaProductsComponent(ProductsComponent):
                     saved_count += 1
 
                 except Exception as e:
-                    self.logger.error(f"❌ Error guardando producto {product_data.get('sku')}: {e}")
+                    self.logger.error(
+                        f"❌ Error guardando producto {product_data.get('sku')}: {e}"
+                    )
                     continue
 
             await self.db.commit()
@@ -386,5 +425,6 @@ class EmasaProductsComponent(ProductsComponent):
         except Exception as e:
             self.logger.error(f"❌ Error en _save_products: {e}")
             import traceback
+
             self.logger.error(traceback.format_exc())
             return 0
