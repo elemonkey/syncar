@@ -9,7 +9,7 @@ from typing import List
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.logger import logger
-from app.importers.noriega import NoriegaAuthComponent, NoriegaCategoriesComponent
+from app.importers.noriega import NoriegaAuthComponent, NoriegaCategoriesComponent, NoriegaProductsComponent
 from app.importers.orchestrator import ImportOrchestrator
 from app.models import Importer, ImportJob, JobStatus, JobType
 from app.tasks.celery_app import celery_app
@@ -257,17 +257,83 @@ async def _run_import_products(
 
             # Ejecutar importación con Playwright
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                browser = await p.chromium.launch(
+                    headless=settings.HEADLESS,
+                    slow_mo=500 if not settings.HEADLESS else 0,
+                )
+
+                page = None
+                context = None
 
                 try:
-                    orchestrator = ImportOrchestrator(
-                        importer_name=importer_name,
-                        job_id=job_id,
-                        db=db,
-                        browser=browser,
-                    )
+                    if importer_name.upper() == "NORIEGA":
+                        # Usar componentes específicos de Noriega
+                        logger.info("🔧 Usando componentes de Noriega para productos")
 
-                    result = await orchestrator.import_products(selected_categories)
+                        # Obtener credenciales
+                        from sqlalchemy.orm import joinedload
+                        result_config = await db.execute(
+                            select(Importer)
+                            .options(joinedload(Importer.config))
+                            .where(Importer.name == importer_name.upper())
+                        )
+                        importer_with_config = result_config.unique().scalar_one_or_none()
+                        credentials = importer_with_config.config.credentials or {} if importer_with_config and importer_with_config.config else {}
+
+                        # Paso 1: Autenticación
+                        auth_component = NoriegaAuthComponent(
+                            importer_name=importer_name,
+                            job_id=job_id,
+                            db=db,
+                            browser=browser,
+                            credentials=credentials,
+                            headless=settings.HEADLESS,
+                        )
+                        auth_result = await auth_component.execute()
+
+                        # Guardar referencias a page y context
+                        page = auth_result.get("page")
+                        context = auth_result.get("context")
+
+                        if not auth_result["success"]:
+                            logger.error("❌ Autenticación fallida")
+                            job.status = JobStatus.FAILED
+                            job.result = {
+                                "success": False,
+                                "message": auth_result.get("message", ""),
+                                "error": auth_result.get("error"),
+                            }
+                            await db.commit()
+                            return job.result
+
+                        # Obtener configuración del importador
+                        config = {
+                            "products_per_category": importer_with_config.products_per_category,
+                            "scraping_speed_ms": 1000,
+                        }
+
+                        # Paso 2: Extracción de productos
+                        products_component = NoriegaProductsComponent(
+                            importer_name=importer_name,
+                            job_id=job_id,
+                            db=db,
+                            browser=browser,
+                            page=page,
+                            context=context,
+                            selected_categories=selected_categories,
+                            config=config,
+                        )
+                        result = await products_component.execute()
+
+                    else:
+                        # Usar orchestrator genérico para otros importadores
+                        orchestrator = ImportOrchestrator(
+                            importer_name=importer_name,
+                            job_id=job_id,
+                            db=db,
+                            browser=browser,
+                        )
+                        result = await orchestrator.import_products(selected_categories)
 
                     # Actualizar job con resultado
                     job.status = (
