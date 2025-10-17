@@ -4,7 +4,7 @@ Endpoints para categorías
 from typing import List, Optional
 
 from app.core.database import get_db
-from app.models import Category, Importer
+from app.models import Category, Importer, Product
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import delete, select
@@ -109,7 +109,8 @@ async def delete_multiple_categories(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Elimina múltiples categorías por sus IDs para un importador específico
+    Elimina múltiples categorías por sus IDs para un importador específico.
+    También elimina los productos asociados a esas categorías.
     """
     if not request.category_ids:
         raise HTTPException(status_code=400, detail="No se proporcionaron IDs de categorías")
@@ -130,7 +131,15 @@ async def delete_multiple_categories(
                 detail="Algunas categorías no pertenecen al importador especificado o no existen"
             )
 
-        # Eliminar las categorías
+        # Primero, eliminar todos los productos asociados a estas categorías
+        delete_products_result = await db.execute(
+            delete(Product).where(
+                Product.category_id.in_(request.category_ids)
+            )
+        )
+        products_deleted = delete_products_result.rowcount
+
+        # Luego, eliminar las categorías
         await db.execute(
             delete(Category).where(
                 Category.id.in_(request.category_ids),
@@ -139,10 +148,15 @@ async def delete_multiple_categories(
         )
         await db.commit()
 
+        message = f"Se eliminaron {len(request.category_ids)} categorías correctamente"
+        if products_deleted > 0:
+            message += f" y {products_deleted} productos asociados"
+
         return {
             "success": True,
             "deleted_count": len(request.category_ids),
-            "message": f"Se eliminaron {len(request.category_ids)} categorías correctamente"
+            "products_deleted": products_deleted,
+            "message": message
         }
 
     except HTTPException:
