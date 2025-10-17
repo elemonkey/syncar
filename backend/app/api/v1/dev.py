@@ -431,18 +431,36 @@ async def _execute_dev_import_products(
 
                         logger.info(f"✅ Importación de productos completada: {job_id}")
 
-                        # Mantener navegador abierto brevemente para inspección
+                        # ⚠️ MANTENER NAVEGADOR ABIERTO INDEFINIDAMENTE PARA DESARROLLO
                         logger.info("=" * 80)
-                        logger.info("🔧 MODO DESARROLLO - Navegador abierto por 3 segundos")
+                        logger.info("🔧 MODO DESARROLLO - NAVEGADOR PERMANECERÁ ABIERTO")
                         logger.info("=" * 80)
-                        logger.info("⏳ Esperando 3 segundos antes de cerrar...")
+                        logger.info("")
+                        logger.info(
+                            f"✅ {products_result.get('total', 0)} productos importados"
+                        )
+                        logger.info("🏠 Navegador en la última página visitada")
+                        logger.info("")
+                        logger.info("� AHORA PUEDES:")
+                        logger.info("   1. Inspeccionar los productos en el navegador")
+                        logger.info("   2. Verificar la estructura de las páginas")
+                        logger.info("   3. Navegar manualmente por el sitio")
+                        logger.info("   4. Desarrollar/ajustar selectores si es necesario")
+                        logger.info("")
+                        logger.info("⏸️  El navegador NO se cerrará automáticamente")
+                        logger.info("🛑 Presiona Ctrl+C en esta terminal cuando termines")
+                        logger.info("")
                         logger.info("=" * 80)
 
-                        # Esperar brevemente para poder inspeccionar
+                        # Esperar indefinidamente hasta Ctrl+C
                         import asyncio
-                        await asyncio.sleep(3)
 
-                        logger.info("✅ Proceso completado, cerrando navegador...")
+                        try:
+                            logger.info("⏳ Esperando... (Ctrl+C para cerrar)")
+                            while True:
+                                await asyncio.sleep(3600)  # Esperar 1 hora, repetir
+                        except KeyboardInterrupt:
+                            logger.info("\n⚠️  Ctrl+C detectado - Cerrando navegador...")
 
                     elif importer_name.upper() == "EMASA":
                         logger.info("🔧 Ejecutando componente de EMASA")
@@ -502,18 +520,36 @@ async def _execute_dev_import_products(
 
                         logger.info(f"✅ Importación de productos completada: {job_id}")
 
-                        # Mantener navegador abierto brevemente para inspección
+                        # ⚠️ MANTENER NAVEGADOR ABIERTO INDEFINIDAMENTE PARA DESARROLLO
                         logger.info("=" * 80)
-                        logger.info("🔧 MODO DESARROLLO - Navegador abierto por 3 segundos")
+                        logger.info("🔧 MODO DESARROLLO - NAVEGADOR PERMANECERÁ ABIERTO")
                         logger.info("=" * 80)
-                        logger.info("⏳ Esperando 3 segundos antes de cerrar...")
+                        logger.info("")
+                        logger.info(
+                            f"✅ {products_result.get('total', 0)} productos importados"
+                        )
+                        logger.info("🏠 Navegador en la última página visitada")
+                        logger.info("")
+                        logger.info("� AHORA PUEDES:")
+                        logger.info("   1. Inspeccionar los productos en el navegador")
+                        logger.info("   2. Verificar la estructura de las páginas")
+                        logger.info("   3. Navegar manualmente por el sitio")
+                        logger.info("   4. Desarrollar/ajustar selectores si es necesario")
+                        logger.info("")
+                        logger.info("⏸️  El navegador NO se cerrará automáticamente")
+                        logger.info("🛑 Presiona Ctrl+C en esta terminal cuando termines")
+                        logger.info("")
                         logger.info("=" * 80)
 
-                        # Esperar brevemente para poder inspeccionar
+                        # Esperar indefinidamente hasta Ctrl+C
                         import asyncio
-                        await asyncio.sleep(3)
 
-                        logger.info("✅ Proceso completado, cerrando navegador...")
+                        try:
+                            logger.info("⏳ Esperando... (Ctrl+C para cerrar)")
+                            while True:
+                                await asyncio.sleep(3600)  # Esperar 1 hora, repetir
+                        except KeyboardInterrupt:
+                            logger.info("\n⚠️  Ctrl+C detectado - Cerrando navegador...")
 
                 except Exception as e:
                     logger.error(f"❌ Error en scraping: {e}")
