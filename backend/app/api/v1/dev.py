@@ -271,7 +271,7 @@ async def dev_import_categories(importer_name: str, db: AsyncSession = Depends(g
 
                     # Mantener navegador abierto brevemente para inspección
                     logger.info("=" * 80)
-                    logger.info("🔧 MODO DESARROLLO - Navegador abierto por 10 segundos")
+                    logger.info("🔧 MODO DESARROLLO - Navegador abierto por 3 segundos")
                     logger.info("=" * 80)
                     logger.info("")
                     logger.info(
@@ -279,12 +279,12 @@ async def dev_import_categories(importer_name: str, db: AsyncSession = Depends(g
                     )
                     logger.info("🏠 Navegador en la página de categorías")
                     logger.info("")
-                    logger.info("⏳ Esperando 10 segundos antes de cerrar...")
+                    logger.info("⏳ Esperando 3 segundos antes de cerrar...")
                     logger.info("=" * 80)
 
                     # Esperar brevemente para poder inspeccionar
                     import asyncio
-                    await asyncio.sleep(10)
+                    await asyncio.sleep(3)
 
                     logger.info("✅ Proceso completado, cerrando navegador...")
 
@@ -293,6 +293,7 @@ async def dev_import_categories(importer_name: str, db: AsyncSession = Depends(g
                         "job_id": job_id,
                         "categories": categories_result.get("categories", []),
                         "total": categories_result.get("total", 0),
+                        "saved": categories_result.get("total", 0),
                         "message": "Importación completada exitosamente.",
                     }
 
@@ -432,14 +433,14 @@ async def _execute_dev_import_products(
 
                         # Mantener navegador abierto brevemente para inspección
                         logger.info("=" * 80)
-                        logger.info("🔧 MODO DESARROLLO - Navegador abierto por 10 segundos")
+                        logger.info("🔧 MODO DESARROLLO - Navegador abierto por 3 segundos")
                         logger.info("=" * 80)
-                        logger.info("⏳ Esperando 10 segundos antes de cerrar...")
+                        logger.info("⏳ Esperando 3 segundos antes de cerrar...")
                         logger.info("=" * 80)
 
                         # Esperar brevemente para poder inspeccionar
                         import asyncio
-                        await asyncio.sleep(10)
+                        await asyncio.sleep(3)
 
                         logger.info("✅ Proceso completado, cerrando navegador...")
 
