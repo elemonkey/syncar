@@ -103,15 +103,17 @@ async def start_product_import(
         Job ID para trackear el progreso
     """
     selected_categories = request.selected_categories
-    # Verificar que el importador existe
-    result = await db.execute(select(Importer).where(Importer.name == importer_name))
+    # Verificar que el importador existe (convertir a mayúsculas para ENUM)
+    result = await db.execute(
+        select(Importer).where(Importer.name == importer_name.upper())
+    )
     importer = result.scalar_one_or_none()
 
     if not importer:
         raise HTTPException(status_code=404, detail="Importer not found")
 
-    # Iniciar tarea de Celery
-    task = import_products_task.delay(importer_name, selected_categories)
+    # Iniciar tarea de Celery (pasar nombre en mayúsculas)
+    task = import_products_task.delay(importer_name.upper(), selected_categories)
 
     return {
         "message": "Product import started",
