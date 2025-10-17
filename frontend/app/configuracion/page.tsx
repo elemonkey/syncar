@@ -163,11 +163,31 @@ export default function ConfiguracionPage() {
       )}
 
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+        {/* Header - Sin emoji, con icono outline */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            ⚙️ Configuración de Importadores
-          </h1>
+          <div className="flex items-center space-x-3 mb-2">
+            <svg
+              className="w-10 h-10 text-blue-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+            <h1 className="text-4xl font-bold text-white">
+              Configuración de Importadores
+            </h1>
+          </div>
           <p className="text-gray-400">
             Configura las credenciales de acceso para cada importador
           </p>
@@ -329,11 +349,11 @@ export default function ConfiguracionPage() {
             onClick={handleSave}
             disabled={saving}
             className={`
-              px-8 py-3 rounded-lg font-bold text-lg transition-all flex items-center space-x-2
+              px-8 py-3 rounded font-bold text-lg transition-all flex items-center space-x-2
               ${
                 saving
                   ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:shadow-blue-500/50"
+                  : "bg-blue-500 hover:bg-blue-600 text-white"
               }
             `}
           >
@@ -344,7 +364,19 @@ export default function ConfiguracionPage() {
               </>
             ) : (
               <>
-                <span>💾</span>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+                  />
+                </svg>
                 <span>Guardar Configuración</span>
               </>
             )}

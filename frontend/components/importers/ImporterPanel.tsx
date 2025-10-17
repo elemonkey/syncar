@@ -5,18 +5,24 @@ import {
   CategoriesImporter,
   CategoriesImporterRef,
 } from "./CategoriesImporter";
-import { ProductsImporter } from "./ProductsImporter";
+import { Toast } from "@/components/Toast";
+import { useImportJob } from "@/contexts/ImportJobContext";
 
 interface ImporterPanelProps {
   importerId: string;
 }
 
-type Phase = "categories" | "products";
-
 export function ImporterPanel({ importerId }: ImporterPanelProps) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [showingProducts, setShowingProducts] = useState(false);
+  const [importingProducts, setImportingProducts] = useState(false);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
   const categoriesImporterRef = useRef<CategoriesImporterRef>(null);
+
+  // Usar el contexto del job
+  const { startJob } = useImportJob();
 
   const handleCategoriesImported = (categoryIds: string[]) => {
     setSelectedCategories(categoryIds);
@@ -28,64 +34,146 @@ export function ImporterPanel({ importerId }: ImporterPanelProps) {
     }
   };
 
-  const handleImportProductsClick = () => {
-    if (selectedCategories.length > 0) {
-      setShowingProducts(true);
+  const handleImportProductsClick = async () => {
+    if (selectedCategories.length === 0) return;
+
+    setImportingProducts(true);
+
+    try {
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
+      // 🔧 MODO DESARROLLO: Usar endpoint /dev/ para navegador visible
+      const isDev = process.env.NODE_ENV === "development";
+      const endpoint = isDev
+        ? `${apiUrl}/dev/${importerId}/import-products`
+        : `${apiUrl}/importers/${importerId}/import-products`;
+
+      console.log(`🔧 Iniciando importación de productos para ${importerId}`);
+      console.log(`📋 Categorías seleccionadas: ${selectedCategories.length}`);
+
+      // Iniciar el proceso (el backend lo ejecuta en background)
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          selected_categories: selectedCategories,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || "Error al iniciar importación de productos"
+        );
+      }
+
+      const data = await response.json();
+      console.log("✅ Importación iniciada:", data);
+
+      // Iniciar el job en el contexto global
+      startJob(data.job_id, "products");
+
+      setToast({
+        type: "info",
+        message: `Importación iniciada\n\n🌐 Safari se abrirá automáticamente\n📊 Sigue el progreso en el modal`,
+      });
+
+      setImportingProducts(false);
+    } catch (err) {
+      console.error("❌ Error:", err);
+      setToast({
+        type: "error",
+        message:
+          err instanceof Error ? err.message : "Error al importar productos",
+      });
+      setImportingProducts(false);
     }
   };
 
   return (
     <div className="bg-gray-800/50 backdrop-blur rounded-lg border border-gray-700 p-6">
-      {/* Action Buttons */}
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+          duration={5000}
+        />
+      )}
+
+      {/* Action Buttons - Sin glows/shadows, iconos outline */}
       <div className="flex space-x-4 mb-6 border-b border-gray-700 pb-4">
         <button
           onClick={handleImportCategoriesClick}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2"
+          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded font-medium transition-colors flex items-center space-x-2"
         >
-          <span>📋</span>
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
           <span>Importar Categorías</span>
         </button>
         <button
           onClick={handleImportProductsClick}
-          disabled={selectedCategories.length === 0}
+          disabled={selectedCategories.length === 0 || importingProducts}
           className={`
-            px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2
+            px-6 py-3 rounded font-medium transition-colors flex items-center space-x-2
             ${
-              selectedCategories.length > 0
+              selectedCategories.length > 0 && !importingProducts
                 ? "bg-green-500 hover:bg-green-600 text-white"
                 : "bg-gray-700 text-gray-500 cursor-not-allowed"
             }
           `}
         >
-          <span>📦</span>
-          <span>
-            Importar Productos{" "}
-            {selectedCategories.length > 0 && `(${selectedCategories.length})`}
-          </span>
+          {importingProducts ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+              <span>Importando...</span>
+            </>
+          ) : (
+            <>
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                />
+              </svg>
+              <span>
+                Importar Productos{" "}
+                {selectedCategories.length > 0 &&
+                  `(${selectedCategories.length})`}
+              </span>
+            </>
+          )}
         </button>
-        {showingProducts && (
-          <button
-            onClick={() => setShowingProducts(false)}
-            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors"
-          >
-            ← Volver a Categorías
-          </button>
-        )}
       </div>
 
       {/* Content */}
-      {!showingProducts ? (
-        <CategoriesImporter
-          ref={categoriesImporterRef}
-          importerId={importerId}
-          onCategoriesImported={handleCategoriesImported}
-        />
-      ) : (
-        <ProductsImporter
-          importerId={importerId}
-          categoryIds={selectedCategories}
-        />
-      )}
+      <CategoriesImporter
+        ref={categoriesImporterRef}
+        importerId={importerId}
+        onCategoriesImported={handleCategoriesImported}
+      />
     </div>
   );
 }

@@ -48,14 +48,14 @@ export const CategoriesImporter = forwardRef<
         const data = await response.json();
         if (data.categories && data.categories.length > 0) {
           setCategories(data.categories);
-          
+
           // Cargar categorías seleccionadas previamente
           const selectedCategoryIds = data.categories
             .filter((cat: Category) => cat.selected)
             .map((cat: Category) => cat.id);
-          
+
           setSelectedIds(new Set(selectedCategoryIds));
-          
+
           console.log(
             `✅ Cargadas ${data.categories.length} categorías desde la BD (${selectedCategoryIds.length} seleccionadas)`
           );
@@ -169,7 +169,7 @@ export const CategoriesImporter = forwardRef<
     try {
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-      
+
       const response = await fetch(
         `${apiUrl}/importers/${importerId}/categories/selection`,
         {
@@ -191,9 +191,6 @@ export const CategoriesImporter = forwardRef<
         type: "success",
         message: `Selección guardada!\n\n${selectedIds.size} categorías seleccionadas para ${importerId}`,
       });
-
-      // Notificar al componente padre
-      onCategoriesImported(Array.from(selectedIds));
     } catch (err) {
       setToast({
         type: "error",
@@ -201,6 +198,12 @@ export const CategoriesImporter = forwardRef<
       });
     }
   };
+
+  // Notificar al padre cada vez que cambia la selección (sin guardar en BD)
+  useEffect(() => {
+    onCategoriesImported(Array.from(selectedIds));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIds]); // Solo depende de selectedIds, no de la función
 
   return (
     <div className="space-y-6">
@@ -255,7 +258,7 @@ export const CategoriesImporter = forwardRef<
             <div className="flex space-x-2">
               <button
                 onClick={selectAll}
-                className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition-colors"
+                className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded transition-colors"
               >
                 {selectedIds.size === categories.length
                   ? "Deseleccionar todas"
@@ -263,21 +266,34 @@ export const CategoriesImporter = forwardRef<
               </button>
               <button
                 onClick={handleSaveSelection}
-                className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded font-medium transition-colors flex items-center space-x-2"
               >
-                💾 Guardar Selección
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+                  />
+                </svg>
+                <span>Guardar Selección</span>
               </button>
             </div>
           </div>
 
-          {/* Categories Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Categories Grid - Layout compacto sin contadores */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
             {categories.map((category) => (
               <div
                 key={category.id}
                 onClick={() => toggleCategory(category.id)}
                 className={`
-                  p-4 rounded-lg border-2 cursor-pointer transition-all
+                  p-3 rounded border cursor-pointer transition-colors
                   ${
                     selectedIds.has(category.id)
                       ? "border-blue-500 bg-blue-500/10"
@@ -285,13 +301,13 @@ export const CategoriesImporter = forwardRef<
                   }
                 `}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-white font-medium flex-1">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-white text-sm font-medium flex-1">
                     {category.name}
                   </h3>
                   <div
                     className={`
-                    w-6 h-6 rounded border-2 flex items-center justify-center
+                    w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ml-2
                     ${
                       selectedIds.has(category.id)
                         ? "border-blue-500 bg-blue-500"
@@ -301,29 +317,21 @@ export const CategoriesImporter = forwardRef<
                   >
                     {selectedIds.has(category.id) && (
                       <svg
-                        className="w-4 h-4 text-white"
+                        className="w-3 h-3 text-white"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
+                        strokeWidth={3}
                       >
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          strokeWidth={2}
                           d="M5 13l4 4L19 7"
                         />
                       </svg>
                     )}
                   </div>
                 </div>
-                <p className="text-gray-400 text-sm">
-                  ID: {category.external_id}
-                </p>
-                {category.product_count !== undefined && (
-                  <p className="text-gray-500 text-sm mt-1">
-                    📦 {category.product_count} productos
-                  </p>
-                )}
               </div>
             ))}
           </div>

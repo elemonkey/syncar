@@ -280,11 +280,11 @@ async def save_category_selection(
 ):
     """
     Guarda la selección de categorías para un importador
-    
+
     Args:
         importer_name: Nombre del importador
         request: Lista de IDs de categorías seleccionadas
-    
+
     Returns:
         Confirmación de guardado
     """
@@ -294,33 +294,34 @@ async def save_category_selection(
             select(Importer).where(Importer.name == importer_name.upper())
         )
         importer = result.scalar_one_or_none()
-        
+
         if not importer:
             raise HTTPException(
-                status_code=404,
-                detail=f"Importador '{importer_name}' no encontrado"
+                status_code=404, detail=f"Importador '{importer_name}' no encontrado"
             )
-        
+
         # Desmarcar todas las categorías del importador
         result = await db.execute(
             select(Category).where(Category.importer_id == importer.id)
         )
         all_categories = result.scalars().all()
-        
+
         for category in all_categories:
             category.selected = str(category.id) in request.category_ids
-        
+
         await db.commit()
-        
-        logger.info(f"✅ Guardada selección de {len(request.category_ids)} categorías para {importer_name}")
-        
+
+        logger.info(
+            f"✅ Guardada selección de {len(request.category_ids)} categorías para {importer_name}"
+        )
+
         return {
             "success": True,
             "message": f"Selección guardada: {len(request.category_ids)} categorías",
             "importer": importer_name,
-            "selected_count": len(request.category_ids)
+            "selected_count": len(request.category_ids),
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
