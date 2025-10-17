@@ -48,18 +48,20 @@ class EmasaAuthComponent(AuthComponent):
             page = await context.new_page()
             logger.info("📄 Nueva página creada")
 
-            # Extraer credenciales
-            rut_empresa = self.credentials.get("rut_empresa", "")
-            usuario = self.credentials.get("usuario", "")
+            # Extraer credenciales (claves de la BDD: rut, username, password)
+            rut_empresa = self.credentials.get("rut", "")
+            usuario = self.credentials.get("username", "")
             password = self.credentials.get("password", "")
-            
+
+            logger.info(
+                f"🔑 Credenciales extraídas: RUT={rut_empresa}, Usuario={usuario}"
+            )
+
             # URL de login de EMASA
             login_url = "https://ecommerce.emasa.cl/b2b/loginvip.jsp"
-            
-            logger.info("=== INICIANDO AUTENTICACIÓN EMASA ===")
-            logger.info(f"Navegando a: {login_url}")
 
-            # Navegar a la página de login
+            logger.info("=== INICIANDO AUTENTICACIÓN EMASA ===")
+            logger.info(f"Navegando a: {login_url}")  # Navegar a la página de login
             await page.goto(login_url, wait_until="networkidle")
 
             # 📸 Screenshot página de login
@@ -69,19 +71,19 @@ class EmasaAuthComponent(AuthComponent):
 
             # Esperar a que los campos estén disponibles (usando id)
             logger.info("Esperando campos de login...")
-            await page.wait_for_selector('input#txtrut', timeout=10000)
+            await page.wait_for_selector("input#txtrut", timeout=10000)
 
             # Llenar el campo de RUT (sin puntos, sin guión, sin DV)
             logger.info(f"Llenando RUT: {rut_empresa}")
-            await page.fill('input#txtrut', rut_empresa)
+            await page.fill("input#txtrut", rut_empresa)
 
             # Llenar el campo de Usuario
             logger.info(f"Llenando Usuario: {usuario}")
-            await page.fill('input#txtuser', usuario)
+            await page.fill("input#txtuser", usuario)
 
             # Llenar el campo de Contraseña
             logger.info("Llenando Contraseña")
-            await page.fill('input#txtpass', password)
+            await page.fill("input#txtpass", password)
 
             # 📸 Screenshot DESPUÉS de completar formulario
             screenshot_despues = "/tmp/emasa_despues_completar.png"
@@ -94,7 +96,7 @@ class EmasaAuthComponent(AuthComponent):
             # Hacer clic y esperar navegación simultáneamente
             try:
                 async with page.expect_navigation(timeout=30000):
-                    await page.click('input#btnlogin')
+                    await page.click("input#btnlogin")
                 logger.info("✅ Navegación completada después del clic")
             except Exception as e:
                 logger.warning(f"⚠️ Error en navegación: {e}")
