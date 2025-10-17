@@ -3,6 +3,8 @@ Componente de extracción de categorías para EMASA
 """
 
 from typing import Any, Dict
+import re
+import unicodedata
 
 from app.importers.base import CategoriesComponent
 from playwright.async_api import Browser, Page
@@ -41,7 +43,7 @@ class EmasaCategoriesComponent(CategoriesComponent):
             # No necesitamos navegar, ya estamos en esta página después del auth
             current_url = self.page.url
             self.logger.info(f"📍 Página actual: {current_url}")
-            
+
             # Si no estamos en buscador_googleo, navegar ahí
             if "buscador_googleo.jsp" not in current_url:
                 categories_url = "https://ecommerce.emasa.cl/b2b/buscador_googleo.jsp"
@@ -69,12 +71,30 @@ class EmasaCategoriesComponent(CategoriesComponent):
             # EMASA: categorías desde el dropdown "Nuestras Líneas" en el menú lateral
             self.logger.info("📋 Extrayendo categorías desde 'Nuestras Líneas'...")
 
-            # El dropdown está en el menú lateral izquierdo, bajo el título "Nuestras Líneas"
-            # Selector: <li role="presentation"><a href="resultado_busqueda.jsp?cod_familia=...&nombreMarca=...">
-            categories_selector = 'ul.dropdown-menu li[role="presentation"] a[href*="cod_familia"]'
+            # Selector robusto: busca el <h2> con texto exacto 'Nuestras Líneas' y toma
+            # el primer <ul class="dropdown-menu"> que sigue a ese encabezado.
+            # Usamos XPath para apuntar únicamente a ese dropdown y no a otros similares.
+            categories_selector = (
+                "xpath=//h2[normalize-space(.)='Nuestras Líneas']"
+                "/following::ul[contains(@class,'dropdown-menu')][1]"
+                "//li[@role='presentation']/a[contains(@href,'cod_familia')]"
+            )
             category_elements = await self.page.query_selector_all(categories_selector)
 
-            self.logger.info(f"🔍 Encontrados {len(category_elements)} elementos de categoría")
+            self.logger.info(f"🔍 Encontrados {len(category_elements)} elementos de categoría (Nuestras Líneas)")
+
+            # Helper local para generar slugs seguros (no nulos)
+            def slugify(text: str) -> str:
+                text = text or ""
+                # Normalizar acentos
+                text = unicodedata.normalize("NFKD", text)
+                text = text.encode("ascii", "ignore").decode("ascii")
+                text = re.sub(r"[^a-zA-Z0-9\-\s]", "", text)
+                text = text.strip().lower()
+                text = re.sub(r"[\s]+", "-", text)
+                if not text:
+                    text = "categoria"
+                return text
 
             categories = []
             for element in category_elements:
@@ -95,19 +115,22 @@ class EmasaCategoriesComponent(CategoriesComponent):
                             category_url = href
 
                         # Extraer cod_familia del href para usarlo como external_id
-                        import re
-                        cod_familia_match = re.search(r'cod_familia=([^&]+)', href)
+                        cod_familia_match = re.search(r"cod_familia=([^&]+)", href)
                         external_id = cod_familia_match.group(1) if cod_familia_match else category_name
+
+                        slug = slugify(category_name)
 
                         categories.append(
                             {
                                 "name": category_name,
                                 "external_id": external_id,  # Usar cod_familia como ID
                                 "url": category_url,
-                                "type": "linea",  # Tipo de categoría
+                                "slug": slug,
+                                "product_count": 0,
+                                "selected": False,
                             }
                         )
-                        self.logger.info(f"  ✓ {category_name} ({external_id})")
+                        self.logger.info(f"  ✓ {category_name} ({external_id}) -> slug: {slug}")
 
                 except Exception as e:
                     self.logger.warning(f"⚠️ Error extrayendo categoría: {e}")
@@ -143,16 +166,21 @@ class EmasaCategoriesComponent(CategoriesComponent):
                     # Actualizar categoría existente
                     existing_category.name = cat_data["name"]
                     existing_category.url = cat_data["url"]
-                    existing_category.type = cat_data["type"]
+                    # Asegurar slug no nulo
+                    if getattr(existing_category, "slug", None) in (None, ""):
+                        existing_category.slug = cat_data.get("slug")
+                    existing_category.product_count = cat_data.get("product_count", 0)
+                    existing_category.selected = cat_data.get("selected", False)
                 else:
                     # Crear nueva categoría
                     category = Category(
                         name=cat_data["name"],
                         external_id=cat_data["external_id"],
                         url=cat_data["url"],
-                        type=cat_data["type"],
+                        slug=cat_data.get("slug") or "categoria",
                         importer_id=importer.id,
-                        selected=False,  # Por defecto no seleccionada
+                        product_count=cat_data.get("product_count", 0),
+                        selected=cat_data.get("selected", False),  # Por defecto no seleccionada
                     )
                     self.db.add(category)
 
