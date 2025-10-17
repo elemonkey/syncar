@@ -287,6 +287,7 @@ async def _run_import_products(
         except Exception as e:
             logger.error(f"❌ Error en tarea {job_id}: {e}")
             import traceback
+
             logger.error(traceback.format_exc())
 
             # Marcar job como fallido solo si fue creado
@@ -303,7 +304,7 @@ async def _run_import_products(
 
 @celery_app.task(bind=True, name="import_products")
 def import_products_task(
-    self, importer_name: str, selected_categories: List[str]
+    self, importer_name: str, selected_categories: List[str], job_id: str = None
 ) -> dict:
     """
     Tarea de Celery para importar productos
@@ -311,11 +312,14 @@ def import_products_task(
     Args:
         importer_name: Nombre del importador
         selected_categories: Lista de categorías a importar
+        job_id: ID del job (generado por el endpoint, opcional para compatibilidad)
 
     Returns:
         Dict con el resultado de la importación
     """
-    job_id = str(uuid.uuid4())
+    # Si no se proporciona job_id, generar uno (compatibilidad con código antiguo)
+    if job_id is None:
+        job_id = str(uuid.uuid4())
 
     # Crear un nuevo event loop para esta tarea
     try:
@@ -330,7 +334,7 @@ def import_products_task(
         else:
             # Ya hay un loop, usarlo
             created_new_loop = False
-        
+
         if created_new_loop:
             try:
                 return loop.run_until_complete(
@@ -347,5 +351,6 @@ def import_products_task(
     except Exception as e:
         logger.error(f"❌ Error crítico en import_products_task: {e}")
         import traceback
+
         logger.error(traceback.format_exc())
         return {"success": False, "error": str(e)}

@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 
 from app.core.database import get_db
 from app.core.logger import logger
-from app.models import Category, Importer, ImporterConfig, Product, ImportJob
+from app.models import Category, Importer, ImporterConfig, ImportJob, Product
 from app.tasks.import_tasks import import_categories_task, import_products_task
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -113,12 +113,17 @@ async def start_product_import(
     if not importer:
         raise HTTPException(status_code=404, detail="Importer not found")
 
-    # Iniciar tarea de Celery (pasar nombre en mayúsculas)
-    task = import_products_task.delay(importer_name.upper(), selected_categories)
+    # Generar job_id único para el seguimiento
+    import uuid
+    job_id = str(uuid.uuid4())
+    
+    # Iniciar tarea de Celery (pasar nombre en mayúsculas y job_id)
+    task = import_products_task.delay(importer_name.upper(), selected_categories, job_id)
 
     return {
         "message": "Product import started",
-        "job_id": task.id,
+        "job_id": job_id,  # Devolver el job_id de la BD, no el task.id de Celery
+        "task_id": task.id,  # También devolver el task_id por si acaso
         "importer": importer_name,
         "categories": selected_categories,
     }
@@ -128,27 +133,25 @@ async def start_product_import(
 async def get_job_status(job_id: str, db: AsyncSession = Depends(get_db)):
     """
     Obtiene el estado de un job de importación
-    
+
     Args:
         job_id: ID del job (puede ser Celery task ID o job_id en BD)
-    
+
     Returns:
         Estado del job con progreso y detalles
     """
     # Buscar por job_id (UUID del job en la BD)
-    result = await db.execute(
-        select(ImportJob).where(ImportJob.job_id == job_id)
-    )
+    result = await db.execute(select(ImportJob).where(ImportJob.job_id == job_id))
     job = result.scalar_one_or_none()
-    
+
     if not job:
         # Si no se encuentra, podría ser un Celery task_id
         # Intentar buscar por el task_id en la tabla (si lo guardamos)
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     # Extraer datos del resultado si existen
     result_data = job.result or {}
-    
+
     return {
         "job_id": job.job_id,
         "status": job.status.value,
