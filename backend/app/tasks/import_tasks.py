@@ -230,7 +230,9 @@ async def _run_import_products(
     )
     logger.info(f"Categorías: {selected_categories}")
 
+    # Crear una nueva sesión de base de datos para esta tarea
     async with AsyncSessionLocal() as db:
+        job = None  # Inicializar job como None
         try:
             # Crear registro del job
             result = await db.execute(
@@ -251,6 +253,7 @@ async def _run_import_products(
             )
             db.add(job)
             await db.commit()
+            await db.refresh(job)  # Refrescar job para asegurar que está sincronizado
 
             # Ejecutar importación con Playwright
             async with async_playwright() as p:
@@ -283,11 +286,17 @@ async def _run_import_products(
 
         except Exception as e:
             logger.error(f"❌ Error en tarea {job_id}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
-            # Marcar job como fallido
-            job.status = JobStatus.FAILED
-            job.error_message = str(e)
-            await db.commit()
+            # Marcar job como fallido solo si fue creado
+            if job is not None:
+                try:
+                    job.status = JobStatus.FAILED
+                    job.error_message = str(e)
+                    await db.commit()
+                except Exception as db_error:
+                    logger.error(f"❌ Error al actualizar job en BD: {db_error}")
 
             return {"success": False, "error": str(e)}
 
@@ -309,11 +318,34 @@ def import_products_task(
     job_id = str(uuid.uuid4())
 
     # Crear un nuevo event loop para esta tarea
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     try:
-        return loop.run_until_complete(
-            _run_import_products(importer_name, selected_categories, job_id)
-        )
-    finally:
-        loop.close()
+        # Intentar obtener el loop actual, si no existe crear uno nuevo
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No hay loop en ejecución, crear uno nuevo
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            created_new_loop = True
+        else:
+            # Ya hay un loop, usarlo
+            created_new_loop = False
+        
+        if created_new_loop:
+            try:
+                return loop.run_until_complete(
+                    _run_import_products(importer_name, selected_categories, job_id)
+                )
+            finally:
+                loop.close()
+                asyncio.set_event_loop(None)
+        else:
+            # Si ya hay un loop, usar asyncio.run
+            return asyncio.run(
+                _run_import_products(importer_name, selected_categories, job_id)
+            )
+    except Exception as e:
+        logger.error(f"❌ Error crítico en import_products_task: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {"success": False, "error": str(e)}
