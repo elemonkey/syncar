@@ -13,6 +13,7 @@ from typing import List
 from app.core.database import get_db
 from app.core.logger import logger
 from app.importers.noriega import NoriegaAuthComponent, NoriegaCategoriesComponent
+from app.importers.emasa import EmasaAuthComponent, EmasaCategoriesComponent
 from app.models import Importer, ImporterType, ImportJob, JobStatus, JobType
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from playwright.async_api import async_playwright
@@ -199,6 +200,111 @@ async def dev_import_categories(importer_name: str, db: AsyncSession = Depends(g
                         "categories": categories_result.get("categories", []),
                         "total": categories_result.get("total", 0),
                         "saved": categories_result.get("saved", 0),
+                        "message": "Importación completada exitosamente.",
+                    }
+
+                elif importer_name.upper() == "EMASA":
+                    logger.info("🔧 Ejecutando componente de EMASA")
+
+                    # Paso 1: Autenticación
+                    auth_component = EmasaAuthComponent(
+                        importer_name=importer_name,
+                        job_id=job_id,
+                        db=db,
+                        browser=browser,
+                        credentials=credentials,
+                        headless=False,
+                    )
+                    auth_result = await auth_component.execute()
+
+                    page = auth_result.get("page")
+                    context = auth_result.get("context")
+
+                    if not auth_result["success"]:
+                        logger.error("❌ Autenticación fallida")
+                        job.status = JobStatus.FAILED
+                        job.result = {
+                            "success": False,
+                            "message": auth_result.get("message", ""),
+                            "error": auth_result.get("error"),
+                        }
+                        await db.commit()
+
+                        # Mantener navegador abierto para inspección
+                        logger.info(
+                            "🔍 Navegador abierto por 120 segundos para inspección..."
+                        )
+                        import asyncio
+
+                        await asyncio.sleep(120)
+
+                        return {
+                            "success": False,
+                            "job_id": job_id,
+                            "error": auth_result.get("error"),
+                            "message": "Revisa el navegador que se abrió para ver qué salió mal",
+                        }
+
+                    # Paso 2: Extracción de categorías
+                    logger.info("📋 Extrayendo categorías...")
+                    categories_component = EmasaCategoriesComponent(
+                        importer_name=importer_name,
+                        job_id=job_id,
+                        db=db,
+                        browser=browser,
+                        page=page,
+                        context=context,
+                    )
+                    categories_result = await categories_component.execute()
+
+                    # Actualizar job
+                    job.status = (
+                        JobStatus.COMPLETED
+                        if categories_result["success"]
+                        else JobStatus.FAILED
+                    )
+                    job.result = categories_result
+                    job.progress = 100
+                    await db.commit()
+
+                    logger.info(f"✅ Importación completada: {job_id}")
+
+                    # ⚠️ MANTENER NAVEGADOR ABIERTO INDEFINIDAMENTE PARA DESARROLLO
+                    logger.info("=" * 80)
+                    logger.info("🔧 MODO DESARROLLO - NAVEGADOR PERMANECERÁ ABIERTO")
+                    logger.info("=" * 80)
+                    logger.info("")
+                    logger.info(
+                        f"✅ {categories_result.get('total', 0)} categorías encontradas"
+                    )
+                    logger.info("🏠 Navegador en la página de categorías")
+                    logger.info("")
+                    logger.info("📋 AHORA PUEDES:")
+                    logger.info("   1. Inspeccionar las categorías en el navegador")
+                    logger.info("   2. Verificar la estructura de las tablas")
+                    logger.info("   3. Navegar a una categoría de prueba")
+                    logger.info("   4. Desarrollar selectores si es necesario")
+                    logger.info("")
+                    logger.info("⏸️  El navegador NO se cerrará automáticamente")
+                    logger.info("🛑 Presiona Ctrl+C en esta terminal cuando termines")
+                    logger.info("")
+                    logger.info("=" * 80)
+
+                    # Esperar indefinidamente hasta Ctrl+C
+                    import asyncio
+
+                    try:
+                        logger.info("⏳ Esperando... (Ctrl+C para cerrar)")
+                        while True:
+                            await asyncio.sleep(3600)  # Esperar 1 hora, repetir
+                    except KeyboardInterrupt:
+                        logger.info("\n⚠️  Ctrl+C detectado - Cerrando navegador...")
+
+                    return {
+                        "success": True,
+                        "job_id": job_id,
+                        "categories": categories_result.get("categories", []),
+                        "total": categories_result.get("total", 0),
                         "message": "Importación completada exitosamente.",
                     }
 
