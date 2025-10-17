@@ -67,6 +67,16 @@ class NoriegaCategoriesComponent(CategoriesComponent):
 
             categories = []
             for element in category_elements:
+                # Verificar si el job fue cancelado
+                if await self.is_job_cancelled():
+                    self.logger.warning("❌ Importación cancelada por el usuario")
+                    return {
+                        "success": False,
+                        "error": "Importación cancelada por el usuario",
+                        "categories": [],
+                        "total": 0,
+                    }
+                
                 try:
                     # Extraer texto (nombre de categoría)
                     category_name = await element.text_content()
@@ -107,6 +117,16 @@ class NoriegaCategoriesComponent(CategoriesComponent):
             )
 
             for element in fabricante_elements:
+                # Verificar si el job fue cancelado
+                if await self.is_job_cancelled():
+                    self.logger.warning("❌ Importación cancelada por el usuario")
+                    return {
+                        "success": False,
+                        "error": "Importación cancelada por el usuario",
+                        "categories": [],
+                        "total": 0,
+                    }
+                
                 try:
                     category_name = await element.text_content()
                     category_name = category_name.strip() if category_name else ""
@@ -187,6 +207,17 @@ class NoriegaCategoriesComponent(CategoriesComponent):
             # Crear nuevas categorías
             saved_count = 0
             for cat_data in categories:
+                # Verificar si el job fue cancelado
+                if await self.is_job_cancelled():
+                    self.logger.warning("❌ Guardado cancelado por el usuario")
+                    await self.db.rollback()
+                    return {
+                        "success": False,
+                        "error": "Importación cancelada por el usuario",
+                        "categories": [],
+                        "total": 0,
+                    }
+                
                 try:
                     # Crear slug del nombre
                     import re

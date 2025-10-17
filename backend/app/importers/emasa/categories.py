@@ -100,6 +100,16 @@ class EmasaCategoriesComponent(CategoriesComponent):
 
             categories = []
             for element in category_elements:
+                # Verificar si el job fue cancelado
+                if await self.is_job_cancelled():
+                    self.logger.warning("❌ Importación cancelada por el usuario")
+                    return {
+                        "success": False,
+                        "error": "Importación cancelada por el usuario",
+                        "categories": [],
+                        "total": 0,
+                    }
+                
                 try:
                     # Extraer texto (nombre de categoría)
                     category_name = await element.text_content()
@@ -161,6 +171,17 @@ class EmasaCategoriesComponent(CategoriesComponent):
 
             saved_count = 0
             for cat_data in categories:
+                # Verificar si el job fue cancelado
+                if await self.is_job_cancelled():
+                    self.logger.warning("❌ Guardado cancelado por el usuario")
+                    await self.db.rollback()
+                    return {
+                        "success": False,
+                        "error": "Importación cancelada por el usuario",
+                        "categories": [],
+                        "total": 0,
+                    }
+                
                 # Verificar si la categoría ya existe
                 result = await self.db.execute(
                     select(Category).where(
