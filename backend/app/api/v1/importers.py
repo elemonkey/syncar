@@ -81,10 +81,15 @@ async def start_category_import(importer_name: str, db: AsyncSession = Depends(g
     }
 
 
+class ImportProductsRequest(BaseModel):
+    """Schema para la request de importación de productos"""
+    selected_categories: List[str]
+
+
 @router.post("/{importer_name}/import-products")
 async def start_product_import(
     importer_name: str,
-    selected_categories: List[str],
+    request: ImportProductsRequest,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -92,11 +97,12 @@ async def start_product_import(
 
     Args:
         importer_name: Nombre del importador
-        selected_categories: Lista de categorías a importar
+        request: Request con lista de categorías a importar
 
     Returns:
         Job ID para trackear el progreso
     """
+    selected_categories = request.selected_categories
     # Verificar que el importador existe
     result = await db.execute(select(Importer).where(Importer.name == importer_name))
     importer = result.scalar_one_or_none()
