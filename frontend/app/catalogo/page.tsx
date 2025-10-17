@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
 
 interface Application {
   car_brand: string;
@@ -63,6 +64,13 @@ export default function CatalogoPage() {
   useEffect(() => {
     loadData();
   }, [selectedImporter, selectedCategory]);
+
+  // Auto-refresh cuando hay cambios en otras partes de la app
+  useAutoRefresh({
+    onRefresh: loadData,
+    enabled: !loading,
+    interval: 5000,
+  });
 
   const loadData = async () => {
     setLoading(true);

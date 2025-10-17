@@ -3,6 +3,7 @@
 import { useImportJob } from "@/contexts/ImportJobContext";
 import { useEffect, useState } from "react";
 import { Toast } from "./Toast";
+import { emitDataChanged } from "@/lib/hooks/useAutoRefresh";
 
 export default function PersistentImportModal() {
   const { currentJob, updateJob, closeJob, toggleMinimize, cancelJob } = useImportJob();
@@ -90,6 +91,11 @@ export default function PersistentImportModal() {
             currentStep,
             detailedStatus,
           });
+
+          // Si está completado, emitir evento de cambio de datos
+          if (data.status === "completed") {
+            emitDataChanged();
+          }
 
           // Si está completado o en error, detener el polling
           // Backend usa: "completed", "failed", "cancelled"

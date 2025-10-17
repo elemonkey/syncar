@@ -2,6 +2,7 @@
 
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Toast } from "@/components/Toast";
+import { useAutoRefresh, emitDataChanged } from "@/lib/hooks/useAutoRefresh";
 
 interface CategoriesImporterProps {
   importerId: string;
@@ -76,6 +77,13 @@ export const CategoriesImporter = forwardRef<
     loadCategoriesFromDB();
   }, [importerId]);
 
+  // Auto-refresh cuando hay cambios en otras partes de la app
+  useAutoRefresh({
+    onRefresh: loadCategoriesFromDB,
+    enabled: !loadingFromDB && !loading,
+    interval: 5000,
+  });
+
   // Exponer función para ser llamada desde el componente padre
   useImperativeHandle(ref, () => ({
     startImport: () => {
@@ -121,6 +129,9 @@ export const CategoriesImporter = forwardRef<
       if (data.success) {
         // Recargar categorías desde la BD
         await loadCategoriesFromDB();
+
+        // Emitir evento de cambio de datos
+        emitDataChanged();
 
         const count = data.saved || data.total || 0;
         setToast({
@@ -187,6 +198,9 @@ export const CategoriesImporter = forwardRef<
         throw new Error("Error al guardar selección");
       }
 
+      // Emitir evento de cambio de datos
+      emitDataChanged();
+
       setToast({
         type: "success",
         message: `Selección guardada!\n\n${selectedIds.size} categorías seleccionadas para ${importerId}`,
@@ -251,6 +265,9 @@ export const CategoriesImporter = forwardRef<
       // Recargar categorías
       await loadCategoriesFromDB();
       setSelectedIds(new Set());
+
+      // Emitir evento de cambio de datos
+      emitDataChanged();
 
       setToast({
         type: "success",
