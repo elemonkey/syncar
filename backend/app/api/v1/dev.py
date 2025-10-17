@@ -444,6 +444,77 @@ async def _execute_dev_import_products(
 
                         logger.info("✅ Proceso completado, cerrando navegador...")
 
+                    elif importer_name.upper() == "EMASA":
+                        logger.info("🔧 Ejecutando componente de EMASA")
+                        from app.importers.emasa import EmasaAuthComponent, EmasaProductsComponent
+
+                        # Paso 1: Autenticación
+                        auth_component = EmasaAuthComponent(
+                            importer_name=importer_name,
+                            job_id=job_id,
+                            db=db,
+                            browser=browser,
+                            credentials=credentials,
+                            headless=False,
+                        )
+                        auth_result = await auth_component.execute()
+
+                        page = auth_result.get("page")
+                        context = auth_result.get("context")
+
+                        if not auth_result["success"]:
+                            logger.error("❌ Autenticación fallida")
+                            job.status = JobStatus.FAILED
+                            job.result = {
+                                "success": False,
+                                "message": auth_result.get("message", ""),
+                                "error": auth_result.get("error"),
+                            }
+                            await db.commit()
+                            return
+
+                        logger.info(
+                            "✅ Autenticación exitosa, iniciando extracción de productos..."
+                        )
+
+                        # Paso 2: Extracción de productos
+                        products_component = EmasaProductsComponent(
+                            importer_name=importer_name,
+                            job_id=job_id,
+                            db=db,
+                            browser=browser,
+                            page=page,
+                            context=context,
+                            selected_categories=selected_categories,
+                            config=config,
+                        )
+                        products_result = await products_component.execute()
+
+                        # Actualizar job
+                        job.status = (
+                            JobStatus.COMPLETED
+                            if products_result["success"]
+                            else JobStatus.FAILED
+                        )
+                        job.result = products_result
+                        job.progress = 100
+                        await db.commit()
+
+                        logger.info(f"✅ Importación de productos completada: {job_id}")
+
+                        # Mantener navegador abierto brevemente para inspección
+                        logger.info("=" * 80)
+                        logger.info("🔧 MODO DESARROLLO - Navegador abierto por 3 segundos")
+                        logger.info("=" * 80)
+                        logger.info("⏳ Esperando 3 segundos antes de cerrar...")
+                        logger.info("=" * 80)
+
+                        # Esperar brevemente para poder inspeccionar
+                        import asyncio
+                        await asyncio.sleep(3)
+
+                        logger.info("✅ Proceso completado, cerrando navegador...")
+
                 except Exception as e:
                     logger.error(f"❌ Error en scraping: {e}")
                     import traceback
