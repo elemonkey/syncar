@@ -48,48 +48,58 @@ class EmasaAuthComponent(AuthComponent):
             page = await context.new_page()
             logger.info("📄 Nueva página creada")
 
-            # Navegar a la página de login
-            await page.goto(self.base_url, wait_until="networkidle", timeout=60000)
-            logger.info(f"✅ Página cargada: {self.base_url}")
-
-            # 📸 Screenshot ANTES de completar formulario
-            screenshot_antes = "/tmp/emasa_antes_login.png"
-            await page.screenshot(path=screenshot_antes)
-            logger.info(f"📸 Screenshot guardado: {screenshot_antes}")
-
-            # 🔑 Completar formulario de login con credenciales de la BD
-            logger.info("📝 Completando formulario de login...")
-
-            # EMASA usa la misma estructura que Noriega: RUT, Usuario, Contraseña
+            # Extraer credenciales
+            rut_empresa = self.credentials.get("rut_empresa", "")
+            usuario = self.credentials.get("usuario", "")
+            password = self.credentials.get("password", "")
             
-            # Campo RUT
-            await page.fill('input[name="trut"]', str(self.credentials.get("rut", "")))
-            logger.info(f"✅ RUT completado: {self.credentials.get('rut', '')}")
+            # URL de login de EMASA
+            login_url = "https://ecommerce.emasa.cl/b2b/loginvip.jsp"
+            
+            logger.info("=== INICIANDO AUTENTICACIÓN EMASA ===")
+            logger.info(f"Navegando a: {login_url}")
 
-            # Campo Usuario
-            await page.fill('input[name="tuser"]', self.credentials.get("username", ""))
-            logger.info(f"✅ Usuario completado: {self.credentials.get('username', '')}")
+            # Navegar a la página de login
+            await page.goto(login_url, wait_until="networkidle")
 
-            # Campo Contraseña
-            await page.fill('input[name="tpass"]', self.credentials.get("password", ""))
-            logger.info("✅ Contraseña completada: ****")
+            # 📸 Screenshot página de login
+            screenshot_login = "/tmp/emasa_01_login_page.png"
+            await page.screenshot(path=screenshot_login)
+            logger.info(f"📸 Screenshot guardado: {screenshot_login}")
+
+            # Esperar a que los campos estén disponibles (usando id)
+            logger.info("Esperando campos de login...")
+            await page.wait_for_selector('input#txtrut', timeout=10000)
+
+            # Llenar el campo de RUT (sin puntos, sin guión, sin DV)
+            logger.info(f"Llenando RUT: {rut_empresa}")
+            await page.fill('input#txtrut', rut_empresa)
+
+            # Llenar el campo de Usuario
+            logger.info(f"Llenando Usuario: {usuario}")
+            await page.fill('input#txtuser', usuario)
+
+            # Llenar el campo de Contraseña
+            logger.info("Llenando Contraseña")
+            await page.fill('input#txtpass', password)
 
             # 📸 Screenshot DESPUÉS de completar formulario
             screenshot_despues = "/tmp/emasa_despues_completar.png"
             await page.screenshot(path=screenshot_despues)
             logger.info(f"📸 Screenshot guardado: {screenshot_despues}")
 
-            # 🚀 Hacer clic en el botón de login
-            logger.info("🚀 Haciendo clic en botón Ingresar...")
+            # 🚀 Hacer clic en el botón de login (btnlogin)
+            logger.info("🚀 Haciendo clic en botón Entrar...")
 
             # Hacer clic y esperar navegación simultáneamente
             try:
                 async with page.expect_navigation(timeout=30000):
-                    await page.click('input[name="Ingresar"]')
+                    await page.click('input#btnlogin')
                 logger.info("✅ Navegación completada después del clic")
             except Exception as e:
                 logger.warning(f"⚠️ Error en navegación: {e}")
                 import asyncio
+
                 await asyncio.sleep(3)
 
             # Verificar URL actual para confirmar login exitoso
@@ -99,6 +109,7 @@ class EmasaAuthComponent(AuthComponent):
             # Detectar y cerrar modal/popup si existe
             logger.info("🔍 Buscando modal o popup...")
             import asyncio
+
             await asyncio.sleep(2)
 
             try:
@@ -125,11 +136,13 @@ class EmasaAuthComponent(AuthComponent):
                 if modal_found:
                     viewport = page.viewport_size
                     logger.info(f"📐 Viewport: {viewport}")
-                    
+
                     x = viewport["width"] - 10
                     y = 10
-                    
-                    logger.info(f"🖱️  Haciendo clic en esquina superior derecha: ({x}, {y})")
+
+                    logger.info(
+                        f"🖱️  Haciendo clic en esquina superior derecha: ({x}, {y})"
+                    )
                     await page.mouse.click(x, y)
                     await asyncio.sleep(1)
                     logger.info("✅ Modal cerrado")
@@ -160,6 +173,7 @@ class EmasaAuthComponent(AuthComponent):
         except Exception as e:
             logger.error(f"❌ Error en autenticación de EMASA: {e}")
             import traceback
+
             logger.error(traceback.format_exc())
             return {
                 "success": False,
