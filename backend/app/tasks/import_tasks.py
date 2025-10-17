@@ -307,8 +307,9 @@ async def _run_import_products(
                             return job.result
 
                         # Obtener configuración del importador
+                        # products_per_category está en el modelo Importer (job.importer_id)
                         config = {
-                            "products_per_category": importer_with_config.products_per_category,
+                            "products_per_category": importer.products_per_category,
                             "scraping_speed_ms": 1000,
                         }
 
