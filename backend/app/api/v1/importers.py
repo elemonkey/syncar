@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 
 from app.core.database import get_db
 from app.core.logger import logger
-from app.models import Category, Importer, ImporterConfig, Product
+from app.models import Category, Importer, ImporterConfig, Product, ImportJob
 from app.tasks.import_tasks import import_categories_task, import_products_task
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -83,6 +83,7 @@ async def start_category_import(importer_name: str, db: AsyncSession = Depends(g
 
 class ImportProductsRequest(BaseModel):
     """Schema para la request de importación de productos"""
+
     selected_categories: List[str]
 
 
@@ -120,6 +121,45 @@ async def start_product_import(
         "job_id": task.id,
         "importer": importer_name,
         "categories": selected_categories,
+    }
+
+
+@router.get("/status/{job_id}")
+async def get_job_status(job_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Obtiene el estado de un job de importación
+    
+    Args:
+        job_id: ID del job (puede ser Celery task ID o job_id en BD)
+    
+    Returns:
+        Estado del job con progreso y detalles
+    """
+    # Buscar por job_id (UUID del job en la BD)
+    result = await db.execute(
+        select(ImportJob).where(ImportJob.job_id == job_id)
+    )
+    job = result.scalar_one_or_none()
+    
+    if not job:
+        # Si no se encuentra, podría ser un Celery task_id
+        # Intentar buscar por el task_id en la tabla (si lo guardamos)
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Extraer datos del resultado si existen
+    result_data = job.result or {}
+    
+    return {
+        "job_id": job.job_id,
+        "status": job.status.value,
+        "progress": job.progress,
+        "total_items": job.total_items or result_data.get("total_items", 0),
+        "processed_items": job.processed_items or result_data.get("processed_items", 0),
+        "current_item": result_data.get("current_item", 0),
+        "current_sku": result_data.get("current_sku", ""),
+        "error_message": job.error_message,
+        "result": result_data,
+        "created_at": job.created_at.isoformat() if job.created_at else None,
     }
 
 

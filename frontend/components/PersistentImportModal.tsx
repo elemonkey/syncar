@@ -24,7 +24,11 @@ export default function PersistentImportModal() {
       try {
         const apiUrl =
           process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-        const url = `${apiUrl}/dev/status/${currentJob.jobId}`;
+        
+        // Usar endpoint de desarrollo solo en desarrollo, en producción usar el endpoint principal
+        const isDev = process.env.NODE_ENV === "development";
+        const endpoint = isDev ? "dev/status" : "importers/status";
+        const url = `${apiUrl}/${endpoint}/${currentJob.jobId}`;
 
         console.log("📡 Polling status:", url);
 
