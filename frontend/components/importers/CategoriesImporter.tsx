@@ -220,7 +220,9 @@ export const CategoriesImporter = forwardRef<
       // Obtener importer_id actual
       const importerResponse = await fetch(`${apiUrl}/importers`);
       const importersData = await importerResponse.json();
-      const currentImporter = importersData.importers.find(
+      
+      // El endpoint retorna directamente un array de importers
+      const currentImporter = importersData.find(
         (imp: any) => imp.name.toLowerCase() === importerId.toLowerCase()
       );
 
