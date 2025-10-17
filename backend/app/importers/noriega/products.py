@@ -157,6 +157,17 @@ class NoriegaProductsComponent(ProductsComponent):
 
             # 🔄 PROCESAR UNA CATEGORÍA A LA VEZ
             for index, category_id in enumerate(self.selected_categories, 1):
+                # ✋ Verificar si el job fue cancelado
+                if await self.is_job_cancelled():
+                    self.logger.warning("❌ Importación cancelada por el usuario")
+                    return {
+                        "success": False,
+                        "error": "Importación cancelada por el usuario",
+                        "products": [],
+                        "total": 0,
+                        "categories_processed": processed_categories,
+                    }
+
                 self.logger.info("=" * 80)
                 self.logger.info(
                     f"📂 CATEGORÍA {index}/{len(self.selected_categories)}: ID={category_id}"
@@ -195,6 +206,17 @@ class NoriegaProductsComponent(ProductsComponent):
 
                 # 🌐 NAVEGAR A LA CATEGORÍA
                 try:
+                    # ✋ Verificar cancelación antes de navegar
+                    if await self.is_job_cancelled():
+                        self.logger.warning("❌ Importación cancelada por el usuario")
+                        return {
+                            "success": False,
+                            "error": "Importación cancelada por el usuario",
+                            "products": [],
+                            "total": 0,
+                            "categories_processed": processed_categories,
+                        }
+
                     await self.page.goto(
                         category_url, wait_until="networkidle", timeout=60000
                     )
@@ -421,6 +443,11 @@ class NoriegaProductsComponent(ProductsComponent):
             # 🔄 PROCESAR CADA PRODUCTO INDIVIDUALMENTE
             for index, sku in enumerate(skus[:max_products], 1):
                 try:
+                    # ✋ Verificar cancelación antes de procesar cada producto
+                    if await self.is_job_cancelled():
+                        self.logger.warning("❌ Importación cancelada por el usuario")
+                        return products  # Retornar productos extraídos hasta ahora
+
                     self.logger.info(f"📦 Producto {index}/{max_products}: SKU {sku}")
 
                     # Actualizar progreso en tiempo real
@@ -916,6 +943,12 @@ class NoriegaProductsComponent(ProductsComponent):
         saved_count = 0
 
         try:
+            # ✋ Verificar cancelación antes de guardar
+            if await self.is_job_cancelled():
+                self.logger.warning("❌ Importación cancelada por el usuario")
+                await self.db.rollback()
+                return 0
+
             self.logger.info(f"💾 Guardando {len(products)} productos en BD...")
 
             for product_data in products:

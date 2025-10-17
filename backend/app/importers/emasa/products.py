@@ -113,6 +113,17 @@ class EmasaProductsComponent(ProductsComponent):
             # Iterar por cada categoría seleccionada
             for idx, cat_id_str in enumerate(self.selected_categories, 1):
                 try:
+                    # ✋ Verificar si el job fue cancelado
+                    if await self.is_job_cancelled():
+                        self.logger.warning("❌ Importación cancelada por el usuario")
+                        return {
+                            "success": False,
+                            "error": "Importación cancelada por el usuario",
+                            "products": [],
+                            "total": 0,
+                            "categories_processed": categories_processed,
+                        }
+
                     cat_id = int(cat_id_str)
                     category = all_categories.get(cat_id)
 
@@ -243,6 +254,11 @@ class EmasaProductsComponent(ProductsComponent):
 
             for idx, element in enumerate(products_to_process, 1):
                 try:
+                    # ✋ Verificar cancelación antes de procesar cada producto
+                    if await self.is_job_cancelled():
+                        self.logger.warning("❌ Importación cancelada por el usuario")
+                        return products  # Retornar productos extraídos hasta ahora
+
                     # Actualizar progreso
                     progress = 20 + (idx / len(products_to_process)) * 60
                     await self.update_progress(
@@ -365,6 +381,12 @@ class EmasaProductsComponent(ProductsComponent):
         from sqlalchemy import select
 
         try:
+            # ✋ Verificar cancelación antes de guardar
+            if await self.is_job_cancelled():
+                self.logger.warning("❌ Importación cancelada por el usuario")
+                await self.db.rollback()
+                return 0
+
             # Obtener el importador
             result = await self.db.execute(
                 select(Importer).where(Importer.name == self.importer_name.upper())
