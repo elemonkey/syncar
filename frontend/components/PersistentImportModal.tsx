@@ -2,6 +2,7 @@
 
 import { useImportJob } from "@/contexts/ImportJobContext";
 import { useEffect, useState } from "react";
+import { showToast } from "./Toast";
 
 export default function PersistentImportModal() {
   const { currentJob, updateJob, closeJob, toggleMinimize, cancelJob } = useImportJob();
@@ -152,7 +153,16 @@ export default function PersistentImportModal() {
     try {
       await cancelJob();
       // Esperar un momento para que el backend procese la cancelación
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Cerrar el modal
+      closeJob();
+      
+      // Mostrar toast de confirmación
+      showToast("Tarea cancelada", "info");
+    } catch (error) {
+      console.error("Error al cancelar job:", error);
+      showToast("Error al cancelar la tarea", "error");
     } finally {
       setIsCancelling(false);
     }
