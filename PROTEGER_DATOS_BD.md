@@ -167,7 +167,7 @@ docker exec importapp-postgres pg_isready -U import_user
 
 # 3. Datos intactos
 docker exec importapp-postgres psql -U import_user -d import_db -c "
-SELECT 
+SELECT
   'Importadores' as tabla, COUNT(*) as registros FROM importers
 UNION ALL
 SELECT 'Categorías', COUNT(*) FROM categories

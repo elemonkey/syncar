@@ -53,7 +53,7 @@ docker compose -f docker-compose.prod.yml build --no-cache
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-**Duración**: 3-5 minutos  
+**Duración**: 3-5 minutos
 **Downtime**: ~2 minutos
 
 ### 2. Restart Rápido (sin cambios en código)
@@ -64,7 +64,7 @@ cd /opt/import-app
 docker compose -f docker-compose.prod.yml restart
 ```
 
-**Duración**: 30 segundos  
+**Duración**: 30 segundos
 **Downtime**: ~10 segundos
 
 ### 3. Restart de Servicio Específico
@@ -83,7 +83,7 @@ docker compose -f docker-compose.prod.yml restart frontend
 docker compose -f docker-compose.prod.yml restart nginx
 ```
 
-**Duración**: 10-20 segundos  
+**Duración**: 10-20 segundos
 **Downtime**: Solo del servicio afectado
 
 ### 4. Update Parcial (solo algunos servicios)
@@ -100,7 +100,7 @@ docker compose -f docker-compose.prod.yml build backend frontend
 docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend celery-worker
 ```
 
-**Duración**: 1-2 minutos  
+**Duración**: 1-2 minutos
 **Downtime**: ~30 segundos
 
 ---
@@ -125,10 +125,10 @@ docker exec importapp-postgres pg_isready -U import_user
 
 # 4. ✅ Contar datos (deben estar intactos)
 docker exec importapp-postgres psql -U import_user -d import_db -c "
-SELECT 
+SELECT
   'Importadores' as tabla, COUNT(*) as registros FROM importers
 UNION ALL
-SELECT 'Categorías', COUNT(*) FROM categories  
+SELECT 'Categorías', COUNT(*) FROM categories
 UNION ALL
 SELECT 'Productos', COUNT(*) FROM products;
 "

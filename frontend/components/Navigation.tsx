@@ -80,13 +80,14 @@ export function Navigation() {
     { href: "/", label: "Inicio", Icon: HomeIcon },
     { href: "/catalogo", label: "Catálogo", Icon: CatalogIcon },
     { href: "/importers", label: "Importadores", Icon: ImportersIcon },
-    { href: "/configuracion", label: "Configuración", Icon: SettingsIcon },
   ];
 
   // No mostrar navegación en la página de inicio
   if (pathname === "/") {
     return null;
   }
+
+  const isConfigActive = pathname === "/configuracion" || pathname.startsWith("/configuracion/");
 
   return (
     <nav className="bg-gray-900/95 backdrop-blur border-b border-gray-800 sticky top-0 z-50">
@@ -124,8 +125,25 @@ export function Navigation() {
             })}
           </div>
 
-          {/* User Section */}
-          <div className="flex items-center space-x-4">
+          {/* User Section con ícono de configuración */}
+          <div className="flex items-center space-x-3">
+            {/* Ícono de Configuración */}
+            <Link
+              href="/configuracion"
+              className={`
+                p-2 rounded transition-all cursor-pointer
+                ${
+                  isConfigActive
+                    ? "bg-blue-500 text-white"
+                    : "text-gray-400 hover:text-white hover:bg-gray-800"
+                }
+              `}
+              title="Configuración"
+            >
+              <SettingsIcon />
+            </Link>
+
+            {/* Usuario */}
             <div className="text-right">
               <p className="text-sm text-gray-400">Usuario</p>
               <p className="text-sm font-medium text-white">Admin</p>

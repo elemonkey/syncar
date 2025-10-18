@@ -113,14 +113,6 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
                             job.result = clean_auth_result
                             await db.commit()
 
-                            # Mantener navegador abierto 60 segundos
-                            import asyncio
-
-                            logger.info(
-                                "🔍 Navegador abierto por 60 segundos para inspección..."
-                            )
-                            await asyncio.sleep(60)
-
                             return clean_auth_result
 
                         # Paso 2: Extracción de categorías
@@ -154,14 +146,6 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
 
                     logger.info(f"✅ Tarea completada: {job_id}")
 
-                    # Mantener navegador abierto por 120 segundos para inspección
-                    import asyncio
-
-                    logger.info(
-                        "🔍 Navegador permanecerá abierto por 120 segundos para inspección..."
-                    )
-                    await asyncio.sleep(120)
-
                     return result
 
                 except Exception as e:
@@ -175,15 +159,19 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
                         job.error_message = str(e)
                         await db.commit()
 
-                    # Mantener navegador abierto 60 segundos en caso de error
-                    import asyncio
-
-                    logger.info(
-                        "🔍 Navegador abierto por 60 segundos para inspección de error..."
-                    )
-                    await asyncio.sleep(60)
-
                     raise
+
+                finally:
+                    # Asegurar que el navegador se cierre siempre
+                    try:
+                        if page:
+                            await page.close()
+                        if context:
+                            await context.close()
+                        await browser.close()
+                        logger.info("🔒 Navegador y contextos cerrados correctamente")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Error cerrando navegador: {e}")
 
         except Exception as e:
             logger.error(f"❌ Error en tarea {job_id}: {e}")
@@ -194,7 +182,7 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
                     job.status = JobStatus.FAILED
                     job.error_message = str(e)
                     await db.commit()
-            except:
+            except Exception:
                 pass
 
             return {"success": False, "error": str(e)}
@@ -368,7 +356,16 @@ async def _run_import_products(
                     return result
 
                 finally:
-                    await browser.close()
+                    # Asegurar que el navegador se cierre siempre
+                    try:
+                        if page:
+                            await page.close()
+                        if context:
+                            await context.close()
+                        await browser.close()
+                        logger.info("🔒 Navegador y contextos cerrados correctamente")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Error cerrando navegador: {e}")
 
         except Exception as e:
             logger.error(f"❌ Error en tarea {job_id}: {e}")

@@ -187,7 +187,7 @@ Si algo no funciona:
 
 1. **Ver logs**: `docker compose -f docker-compose.prod.yml logs -f`
 2. **Reiniciar servicios**: `docker compose -f docker-compose.prod.yml restart`
-3. **Rebuild completo**: 
+3. **Rebuild completo**:
    ```bash
    docker compose -f docker-compose.prod.yml down
    docker compose -f docker-compose.prod.yml up -d --build
@@ -208,7 +208,7 @@ SYNCAR 2.0 está en producción con todas las nuevas funcionalidades:
 
 ---
 
-**Fecha de Deploy**: 18 de Octubre 2025  
-**Commit**: f840c1b  
-**Tiempo de Deploy**: ~5 minutos  
+**Fecha de Deploy**: 18 de Octubre 2025
+**Commit**: f840c1b
+**Tiempo de Deploy**: ~5 minutos
 **Estado**: ✅ EXITOSO
