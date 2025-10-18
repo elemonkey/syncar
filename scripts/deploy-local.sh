@@ -60,9 +60,9 @@ EOF
     echo -e "${GREEN}✅ Archivo .env creado${NC}"
 fi
 
-# Limpiar contenedores anteriores
-echo -e "${YELLOW}🧹 Limpiando contenedores anteriores...${NC}"
-docker-compose -f docker-compose.prod.yml down -v 2>/dev/null || true
+# Detener contenedores anteriores (SIN -v para PRESERVAR datos)
+echo -e "${YELLOW}🛑 Deteniendo contenedores anteriores...${NC}"
+docker-compose -f docker-compose.prod.yml down 2>/dev/null || true
 
 # Construir imágenes
 echo -e "${YELLOW}🔨 Construyendo imágenes Docker...${NC}"

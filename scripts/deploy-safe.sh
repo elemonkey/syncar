@@ -145,11 +145,11 @@ fi
 
 # ===== PASO 3: DETENER CONTENEDORES =====
 echo ""
-echo -e "${MAGENTA}🛑 PASO 3/8: Deteniendo contenedores de producción...${NC}"
+echo -e "${MAGENTA}🛑 PASO 3/8: Deteniendo contenedores de producción (PRESERVANDO DATOS)...${NC}"
 if docker-compose -f docker-compose.prod.yml ps -q 2>/dev/null | grep -q .; then
-    echo "Deteniendo servicios..."
-    docker-compose -f docker-compose.prod.yml down -v 2>/dev/null || true
-    echo -e "${GREEN}✅ Contenedores detenidos${NC}"
+    echo "Deteniendo servicios SIN eliminar volúmenes..."
+    docker-compose -f docker-compose.prod.yml down 2>/dev/null || true
+    echo -e "${GREEN}✅ Contenedores detenidos (datos preservados)${NC}"
 else
     echo -e "${GREEN}✅ No hay contenedores de producción corriendo${NC}"
 fi
