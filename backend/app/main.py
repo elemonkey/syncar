@@ -32,7 +32,11 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("👋 Cerrando aplicación...")
-    await engine.dispose()
+    try:
+        await engine.dispose()
+        logger.info("✅ Conexiones de BD cerradas")
+    except Exception as e:
+        logger.error(f"⚠️ Error cerrando BD: {e}")
 
 
 # Crear aplicación
