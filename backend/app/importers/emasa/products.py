@@ -252,7 +252,7 @@ class EmasaProductsComponent(ProductsComponent):
         self, category: Any, limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
-        Extrae productos de una categoría
+        Extrae productos de una categoría navegando por todas las páginas
 
         Args:
             category: Objeto Category de SQLAlchemy
@@ -264,150 +264,272 @@ class EmasaProductsComponent(ProductsComponent):
         products = []
 
         try:
-            # NOTA: Ajustar selectores según la estructura HTML de EMASA
-
-            # Esperar a que carguen los productos
             import asyncio
+            import re
 
+            # Esperar a que cargue la tabla de productos
             await asyncio.sleep(2)
 
-            # Selector genérico de productos (ajustar según EMASA)
-            product_selector = ".product-item, .product-card, .product"
-            product_elements = await self.page.query_selector_all(product_selector)
-
-            self.logger.info(
-                f"📦 Productos encontrados en página: {len(product_elements)}"
-            )
+            # 1. EXTRAER TOTAL DE PRODUCTOS
+            # Buscar el texto "Mostrando registros del X al Y de un total de Z registros"
+            info_selector = "#tblProd_info"
+            info_element = await self.page.query_selector(info_selector)
+            
+            total_products = 0
+            if info_element:
+                info_text = await info_element.text_content()
+                # Extraer el número total con regex
+                match = re.search(r'de un total de (\d+) registros', info_text)
+                if match:
+                    total_products = int(match.group(1))
+                    self.logger.info(f"📦 Total de productos en categoría: {total_products}")
+            
+            if total_products == 0:
+                self.logger.warning(f"⚠️ No se encontraron productos en {category.name}")
+                return products
 
             # Aplicar límite si existe
-            products_to_process = (
-                product_elements[:limit] if limit else product_elements
-            )
+            products_to_extract = min(total_products, limit) if limit else total_products
+            self.logger.info(f"🎯 Se extraerán {products_to_extract} productos")
 
-            for idx, element in enumerate(products_to_process, 1):
-                try:
-                    # ✋ Verificar cancelación antes de procesar cada producto
+            # 2. NAVEGAR POR TODAS LAS PÁGINAS
+            current_page = 1
+            products_extracted = 0
+
+            while products_extracted < products_to_extract:
+                # ✋ Verificar cancelación antes de cada página
+                if await self.is_job_cancelled():
+                    self.logger.warning("❌ Importación cancelada por el usuario")
+                    return products
+
+                self.logger.info(f"\n📄 Procesando página {current_page}...")
+
+                # 3. EXTRAER PRODUCTOS DE LA PÁGINA ACTUAL
+                # Selector de filas de la tabla
+                row_selector = "#tblProd tbody tr"
+                rows = await self.page.query_selector_all(row_selector)
+                
+                self.logger.info(f"   Productos en página: {len(rows)}")
+
+                for idx, row in enumerate(rows, 1):
+                    # ✋ Verificar cancelación
                     if await self.is_job_cancelled():
-                        self.logger.warning("❌ Importación cancelada por el usuario")
-                        return products  # Retornar productos extraídos hasta ahora
+                        self.logger.warning("❌ Importación cancelada")
+                        return products
 
-                    # Actualizar progreso
-                    progress = 20 + (idx / len(products_to_process)) * 60
-                    
-                    # Actualizar job result con información detallada
-                    await self._update_job_result(
-                        {
-                            "total_items": len(products_to_process),
-                            "processed_items": len(products),
-                            "current_item": idx,
-                            "category": category.name,
-                        }
-                    )
-                    
-                    await self.update_progress(
-                        f"Extrayendo producto {idx}/{len(products_to_process)}...",
-                        int(progress),
-                    )
+                    # Verificar límite
+                    if products_extracted >= products_to_extract:
+                        break
 
-                    # Extraer datos del producto (ajustar selectores según EMASA)
-                    product_data = await self._extract_product_data(element, category)
-
-                    if product_data:
-                        products.append(product_data)
-                        self.logger.info(
-                            f"  ✓ [{idx}/{len(products_to_process)}] {product_data.get('name', 'Sin nombre')[:50]}"
+                    try:
+                        # Actualizar job result
+                        await self._update_job_result(
+                            {
+                                "total_items": products_to_extract,
+                                "processed_items": products_extracted,
+                                "current_item": products_extracted + 1,
+                                "category": category.name,
+                                "current_page": current_page,
+                            }
                         )
 
-                    # Delay entre productos
-                    await asyncio.sleep(self.scraping_speed_ms / 1000.0)
+                        # Extraer datos del producto (fila)
+                        product_data = await self._extract_product_from_row(row, category)
 
-                except Exception as e:
-                    self.logger.warning(f"⚠️ Error extrayendo producto {idx}: {e}")
-                    continue
+                        if product_data:
+                            products.append(product_data)
+                            products_extracted += 1
+                            
+                            self.logger.info(
+                                f"  ✓ [{products_extracted}/{products_to_extract}] "
+                                f"{product_data.get('sku', 'N/A')} - {product_data.get('name', 'Sin nombre')[:50]}"
+                            )
+
+                        # Delay entre productos
+                        await asyncio.sleep(self.scraping_speed_ms / 1000.0)
+
+                    except Exception as e:
+                        self.logger.warning(f"⚠️ Error extrayendo producto {idx}: {e}")
+                        continue
+
+                # 4. NAVEGAR A LA SIGUIENTE PÁGINA SI HAY MÁS PRODUCTOS
+                if products_extracted < products_to_extract:
+                    # Buscar botón "Siguiente"
+                    next_button = await self.page.query_selector("#tblProd_next:not(.disabled)")
+                    
+                    if next_button:
+                        self.logger.info(f"➡️  Navegando a página {current_page + 1}...")
+                        await next_button.click()
+                        await asyncio.sleep(2)  # Esperar a que cargue la nueva página
+                        current_page += 1
+                    else:
+                        self.logger.info("✅ No hay más páginas disponibles")
+                        break
+                else:
+                    break
+
+            self.logger.info(f"\n✅ Extracción completada: {len(products)} productos de {category.name}")
 
         except Exception as e:
             self.logger.error(f"❌ Error en _extract_products_from_category: {e}")
             import traceback
-
             self.logger.error(traceback.format_exc())
 
         return products
 
-    async def _extract_product_data(
-        self, element: Any, category: Any
+    async def _extract_product_from_row(
+        self, row: Any, category: Any
     ) -> Optional[Dict[str, Any]]:
         """
-        Extrae datos de un elemento de producto
-
-        NOTA: Los selectores son genéricos y deben ajustarse según la estructura HTML de EMASA
+        Extrae datos de una fila de la tabla de productos y navega al detalle
 
         Args:
-            element: Elemento de producto de Playwright
+            row: Elemento <tr> de la tabla de productos
             category: Categoría del producto
 
         Returns:
             Dict con datos del producto o None si falla
         """
         try:
-            # Extraer nombre (ajustar selector)
-            name_element = await element.query_selector(
-                ".product-name, .product-title, h3, h4"
-            )
+            import asyncio
+
+            # 1. EXTRAER DATOS BÁSICOS DE LA FILA
+            cells = await row.query_selector_all("td")
+            
+            if len(cells) < 4:  # Verificar que tenga suficientes columnas
+                self.logger.warning("⚠️ Fila sin suficientes columnas")
+                return None
+
+            # Columna ITEM (contiene el enlace al detalle)
+            item_cell = cells[0]
+            item_link = await item_cell.query_selector("a")
+            
+            if not item_link:
+                self.logger.warning("⚠️ No se encontró enlace en columna ITEM")
+                return None
+
+            # Extraer SKU del texto del enlace
+            sku_text = await item_link.text_content()
+            sku = sku_text.strip()
+
+            # Extraer URL del detalle
+            detail_url = await item_link.get_attribute("href")
+            if not detail_url:
+                self.logger.warning(f"⚠️ No se pudo extraer URL para SKU {sku}")
+                return None
+
+            # Construir URL completa si es relativa
+            if not detail_url.startswith("http"):
+                detail_url = f"https://ecommerce.emasa.cl/b2b/{detail_url.lstrip('/')}"
+
+            self.logger.info(f"   🔗 Navegando a detalle: {detail_url}")
+
+            # 2. NAVEGAR AL DETALLE DEL PRODUCTO EN NUEVA PESTAÑA
+            # Guardar la página actual
+            current_page = self.page
+            
+            # Abrir el detalle en nueva pestaña
+            context = current_page.context
+            detail_page = await context.new_page()
+            
+            try:
+                await detail_page.goto(detail_url, wait_until="domcontentloaded", timeout=30000)
+                await asyncio.sleep(1.5)
+
+                # 3. EXTRAER DATOS DEL DETALLE
+                product_data = await self._extract_product_detail(detail_page, sku, category, detail_url)
+
+                return product_data
+
+            finally:
+                # Cerrar la pestaña del detalle
+                await detail_page.close()
+
+        except Exception as e:
+            self.logger.warning(f"⚠️ Error extrayendo producto de fila: {e}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
+            return None
+
+    async def _extract_product_detail(
+        self, page: Any, sku: str, category: Any, url: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Extrae todos los datos del detalle del producto
+
+        Args:
+            page: Página de Playwright con el detalle del producto
+            sku: SKU del producto
+            category: Categoría del producto
+            url: URL del detalle
+
+        Returns:
+            Dict con datos completos del producto o None si falla
+        """
+        try:
+            # EXTRAER NOMBRE
+            name_selector = "h1, .product-title, .product-name"
+            name_element = await page.query_selector(name_selector)
             name = await name_element.text_content() if name_element else "Sin nombre"
             name = name.strip()
 
-            # Extraer SKU/Código (ajustar selector)
-            sku_element = await element.query_selector(
-                ".product-sku, .product-code, .sku"
-            )
-            sku = await sku_element.text_content() if sku_element else ""
-            sku = sku.strip()
+            # EXTRAER DESCRIPCIÓN
+            desc_selector = ".product-description, .description, p"
+            desc_element = await page.query_selector(desc_selector)
+            description = await desc_element.text_content() if desc_element else ""
+            description = description.strip()
 
-            # Extraer precio (ajustar selector)
-            price_element = await element.query_selector(
-                ".product-price, .price, .product-cost"
-            )
-            price_text = await price_element.text_content() if price_element else "0"
-            # Limpiar precio: eliminar símbolos y convertir a float
-            import re
+            # EXTRAER PRECIO
+            price_selector = ".product-price, .price, .precio"
+            price_element = await page.query_selector(price_selector)
+            price = 0.0
+            if price_element:
+                price_text = await price_element.text_content()
+                # Limpiar precio
+                import re
+                price_clean = re.sub(r"[^\d.,]", "", price_text.replace(".", "").replace(",", "."))
+                try:
+                    price = float(price_clean) if price_clean else 0.0
+                except:
+                    price = 0.0
 
-            price_clean = re.sub(
-                r"[^\d.,]", "", price_text.replace(".", "").replace(",", ".")
-            )
-            try:
-                price = float(price_clean) if price_clean else 0.0
-            except:
-                price = 0.0
+            # EXTRAER IMAGEN
+            img_selector = ".product-image img, .main-image img, img"
+            img_element = await page.query_selector(img_selector)
+            image_url = ""
+            if img_element:
+                image_url = await img_element.get_attribute("src") or ""
+                if image_url and not image_url.startswith("http"):
+                    image_url = f"https://ecommerce.emasa.cl/b2b/{image_url.lstrip('/')}"
 
-            # Extraer URL del producto (ajustar selector)
-            link_element = await element.query_selector("a")
-            product_url = (
-                await link_element.get_attribute("href") if link_element else ""
-            )
-            if product_url and not product_url.startswith("http"):
-                product_url = f"https://ecommerce.emasa.cl/b2b/{product_url}"
-
-            # Extraer imagen (ajustar selector)
-            img_element = await element.query_selector("img")
-            image_url = await img_element.get_attribute("src") if img_element else ""
-            if image_url and not image_url.startswith("http"):
-                image_url = f"https://ecommerce.emasa.cl/b2b/{image_url}"
+            # EXTRAER STOCK (si está disponible)
+            stock_selector = ".stock, .availability, .disponibilidad"
+            stock_element = await page.query_selector(stock_selector)
+            stock = 1  # Por defecto
+            if stock_element:
+                stock_text = await stock_element.text_content()
+                # Intentar extraer número
+                import re
+                stock_match = re.search(r'\d+', stock_text)
+                if stock_match:
+                    stock = int(stock_match.group())
 
             return {
                 "name": name,
-                "sku": sku
-                or f"EMASA-{category.id}-{hash(name)}",  # SKU generado si no existe
+                "sku": sku,
                 "price": price,
-                "url": product_url,
+                "url": url,
                 "image_url": image_url,
                 "category_id": category.id,
                 "category_name": category.name,
-                "stock": 1,  # Stock por defecto (ajustar si EMASA muestra stock)
-                "description": "",  # Extraer si está disponible
+                "stock": stock,
+                "description": description,
             }
 
         except Exception as e:
-            self.logger.warning(f"⚠️ Error extrayendo datos de producto: {e}")
+            self.logger.warning(f"⚠️ Error extrayendo detalle del producto {sku}: {e}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
             return None
 
     async def _save_products(self, products: List[Dict[str, Any]]) -> int:
