@@ -22,7 +22,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const showToast = (message: string, type: "success" | "error" | "info") => {
     const id = Math.random().toString(36).substring(7);
     const newToast: ToastMessage = { id, message, type };
-    
+
     setToasts((prev) => [...prev, newToast]);
 
     // Auto-remove después de 5 segundos

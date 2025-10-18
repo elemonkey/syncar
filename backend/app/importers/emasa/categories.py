@@ -109,7 +109,7 @@ class EmasaCategoriesComponent(CategoriesComponent):
                         "categories": [],
                         "total": 0,
                     }
-                
+
                 try:
                     # Extraer texto (nombre de categoría)
                     category_name = await element.text_content()
@@ -181,7 +181,7 @@ class EmasaCategoriesComponent(CategoriesComponent):
                         "categories": [],
                         "total": 0,
                     }
-                
+
                 # Verificar si la categoría ya existe
                 result = await self.db.execute(
                     select(Category).where(

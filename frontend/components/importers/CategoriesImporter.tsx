@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+  useCallback,
+} from "react";
 import { useAutoRefresh, emitDataChanged } from "@/lib/hooks/useAutoRefresh";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -214,18 +220,23 @@ export const CategoriesImporter = forwardRef<
     }
 
     // Confirmar eliminación
-    if (!confirm(`¿Estás seguro de eliminar ${selectedIds.size} categorías?\n\nEsta acción no se puede deshacer.`)) {
+    if (
+      !confirm(
+        `¿Estás seguro de eliminar ${selectedIds.size} categorías?\n\nEsta acción no se puede deshacer.`
+      )
+    ) {
       return;
     }
 
     setLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
       // Obtener importer_id actual
       const importerResponse = await fetch(`${apiUrl}/importers`);
       const importersData = await importerResponse.json();
-      
+
       // El endpoint retorna directamente un array de importers
       const currentImporter = importersData.find(
         (imp: any) => imp.name.toLowerCase() === importerId.toLowerCase()
@@ -334,7 +345,11 @@ export const CategoriesImporter = forwardRef<
                 onClick={handleDeleteSelected}
                 disabled={selectedIds.size === 0}
                 className="bg-red-500 hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded transition-colors flex items-center space-x-2"
-                title={selectedIds.size === 0 ? "Selecciona categorías para eliminar" : "Eliminar categorías seleccionadas"}
+                title={
+                  selectedIds.size === 0
+                    ? "Selecciona categorías para eliminar"
+                    : "Eliminar categorías seleccionadas"
+                }
               >
                 <svg
                   className="w-5 h-5"

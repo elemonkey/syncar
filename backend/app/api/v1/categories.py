@@ -1,6 +1,7 @@
 """
 Endpoints para categorías
 """
+
 from typing import List, Optional
 
 from app.core.database import get_db
@@ -58,8 +59,12 @@ async def get_categories(
             "importer": category.importer.name.lower() if category.importer else None,
             "importer_id": category.importer_id,
             "selected": category.selected,
-            "created_at": category.created_at.isoformat() if category.created_at else None,
-            "updated_at": category.updated_at.isoformat() if category.updated_at else None,
+            "created_at": category.created_at.isoformat()
+            if category.created_at
+            else None,
+            "updated_at": category.updated_at.isoformat()
+            if category.updated_at
+            else None,
         }
         categories_data.append(category_dict)
 
@@ -96,7 +101,9 @@ async def get_category(
         "importer": {
             "id": category.importer.id,
             "name": category.importer.name.lower(),
-        } if category.importer else None,
+        }
+        if category.importer
+        else None,
         "selected": category.selected,
         "created_at": category.created_at.isoformat() if category.created_at else None,
         "updated_at": category.updated_at.isoformat() if category.updated_at else None,
@@ -113,14 +120,16 @@ async def delete_multiple_categories(
     También elimina los productos asociados a esas categorías.
     """
     if not request.category_ids:
-        raise HTTPException(status_code=400, detail="No se proporcionaron IDs de categorías")
+        raise HTTPException(
+            status_code=400, detail="No se proporcionaron IDs de categorías"
+        )
 
     try:
         # Verificar que todas las categorías pertenecen al importador especificado
         result = await db.execute(
             select(Category).where(
                 Category.id.in_(request.category_ids),
-                Category.importer_id == request.importer_id
+                Category.importer_id == request.importer_id,
             )
         )
         categories_to_delete = result.scalars().all()
@@ -128,14 +137,12 @@ async def delete_multiple_categories(
         if len(categories_to_delete) != len(request.category_ids):
             raise HTTPException(
                 status_code=400,
-                detail="Algunas categorías no pertenecen al importador especificado o no existen"
+                detail="Algunas categorías no pertenecen al importador especificado o no existen",
             )
 
         # Primero, eliminar todos los productos asociados a estas categorías
         delete_products_result = await db.execute(
-            delete(Product).where(
-                Product.category_id.in_(request.category_ids)
-            )
+            delete(Product).where(Product.category_id.in_(request.category_ids))
         )
         products_deleted = delete_products_result.rowcount
 
@@ -143,7 +150,7 @@ async def delete_multiple_categories(
         await db.execute(
             delete(Category).where(
                 Category.id.in_(request.category_ids),
-                Category.importer_id == request.importer_id
+                Category.importer_id == request.importer_id,
             )
         )
         await db.commit()
@@ -156,11 +163,13 @@ async def delete_multiple_categories(
             "success": True,
             "deleted_count": len(request.category_ids),
             "products_deleted": products_deleted,
-            "message": message
+            "message": message,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error al eliminar categorías: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error al eliminar categorías: {str(e)}"
+        )

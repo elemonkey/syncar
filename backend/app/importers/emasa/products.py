@@ -274,22 +274,26 @@ class EmasaProductsComponent(ProductsComponent):
             # Buscar el texto "Mostrando registros del X al Y de un total de Z registros"
             info_selector = "#tblProd_info"
             info_element = await self.page.query_selector(info_selector)
-            
+
             total_products = 0
             if info_element:
                 info_text = await info_element.text_content()
                 # Extraer el número total con regex
-                match = re.search(r'de un total de (\d+) registros', info_text)
+                match = re.search(r"de un total de (\d+) registros", info_text)
                 if match:
                     total_products = int(match.group(1))
-                    self.logger.info(f"📦 Total de productos en categoría: {total_products}")
-            
+                    self.logger.info(
+                        f"📦 Total de productos en categoría: {total_products}"
+                    )
+
             if total_products == 0:
                 self.logger.warning(f"⚠️ No se encontraron productos en {category.name}")
                 return products
 
             # Aplicar límite si existe
-            products_to_extract = min(total_products, limit) if limit else total_products
+            products_to_extract = (
+                min(total_products, limit) if limit else total_products
+            )
             self.logger.info(f"🎯 Se extraerán {products_to_extract} productos")
 
             # 2. NAVEGAR POR TODAS LAS PÁGINAS
@@ -308,7 +312,7 @@ class EmasaProductsComponent(ProductsComponent):
                 # Selector de filas de la tabla
                 row_selector = "#tblProd tbody tr"
                 rows = await self.page.query_selector_all(row_selector)
-                
+
                 self.logger.info(f"   Productos en página: {len(rows)}")
 
                 for idx, row in enumerate(rows, 1):
@@ -334,12 +338,14 @@ class EmasaProductsComponent(ProductsComponent):
                         )
 
                         # Extraer datos del producto (fila)
-                        product_data = await self._extract_product_from_row(row, category)
+                        product_data = await self._extract_product_from_row(
+                            row, category
+                        )
 
                         if product_data:
                             products.append(product_data)
                             products_extracted += 1
-                            
+
                             self.logger.info(
                                 f"  ✓ [{products_extracted}/{products_to_extract}] "
                                 f"{product_data.get('sku', 'N/A')} - {product_data.get('name', 'Sin nombre')[:50]}"
@@ -355,8 +361,10 @@ class EmasaProductsComponent(ProductsComponent):
                 # 4. NAVEGAR A LA SIGUIENTE PÁGINA SI HAY MÁS PRODUCTOS
                 if products_extracted < products_to_extract:
                     # Buscar botón "Siguiente"
-                    next_button = await self.page.query_selector("#tblProd_next:not(.disabled)")
-                    
+                    next_button = await self.page.query_selector(
+                        "#tblProd_next:not(.disabled)"
+                    )
+
                     if next_button:
                         self.logger.info(f"➡️  Navegando a página {current_page + 1}...")
                         await next_button.click()
@@ -368,11 +376,14 @@ class EmasaProductsComponent(ProductsComponent):
                 else:
                     break
 
-            self.logger.info(f"\n✅ Extracción completada: {len(products)} productos de {category.name}")
+            self.logger.info(
+                f"\n✅ Extracción completada: {len(products)} productos de {category.name}"
+            )
 
         except Exception as e:
             self.logger.error(f"❌ Error en _extract_products_from_category: {e}")
             import traceback
+
             self.logger.error(traceback.format_exc())
 
         return products
@@ -395,25 +406,34 @@ class EmasaProductsComponent(ProductsComponent):
 
             # 1. EXTRAER DATOS BÁSICOS DE LA FILA
             cells = await row.query_selector_all("td")
-            
-            if len(cells) < 4:  # Verificar que tenga suficientes columnas
+
+            if len(cells) < 3:  # Verificar que tenga al menos 3 columnas
                 self.logger.warning("⚠️ Fila sin suficientes columnas")
                 return None
 
-            # Columna ITEM (contiene el enlace al detalle)
-            item_cell = cells[0]
-            item_link = await item_cell.query_selector("a")
-            
+            # El enlace está en la TERCERA celda (índice 2)
+            item_cell = cells[2]
+
+            # Buscar enlace con data-src o href
+            item_link = await item_cell.query_selector("[data-src]")
             if not item_link:
-                self.logger.warning("⚠️ No se encontró enlace en columna ITEM")
+                item_link = await item_cell.query_selector("a")
+
+            if not item_link:
+                self.logger.warning(
+                    "⚠️ No se encontró enlace en la tercera celda (ITEM)"
+                )
                 return None
 
             # Extraer SKU del texto del enlace
             sku_text = await item_link.text_content()
             sku = sku_text.strip()
 
-            # Extraer URL del detalle
-            detail_url = await item_link.get_attribute("href")
+            # Extraer URL del detalle (puede estar en data-src o href)
+            detail_url = await item_link.get_attribute("data-src")
+            if not detail_url:
+                detail_url = await item_link.get_attribute("href")
+
             if not detail_url:
                 self.logger.warning(f"⚠️ No se pudo extraer URL para SKU {sku}")
                 return None
@@ -427,17 +447,21 @@ class EmasaProductsComponent(ProductsComponent):
             # 2. NAVEGAR AL DETALLE DEL PRODUCTO EN NUEVA PESTAÑA
             # Guardar la página actual
             current_page = self.page
-            
+
             # Abrir el detalle en nueva pestaña
             context = current_page.context
             detail_page = await context.new_page()
-            
+
             try:
-                await detail_page.goto(detail_url, wait_until="domcontentloaded", timeout=30000)
+                await detail_page.goto(
+                    detail_url, wait_until="domcontentloaded", timeout=30000
+                )
                 await asyncio.sleep(1.5)
 
                 # 3. EXTRAER DATOS DEL DETALLE
-                product_data = await self._extract_product_detail(detail_page, sku, category, detail_url)
+                product_data = await self._extract_product_detail(
+                    detail_page, sku, category, detail_url
+                )
 
                 return product_data
 
@@ -448,6 +472,7 @@ class EmasaProductsComponent(ProductsComponent):
         except Exception as e:
             self.logger.warning(f"⚠️ Error extrayendo producto de fila: {e}")
             import traceback
+
             self.logger.debug(traceback.format_exc())
             return None
 
@@ -455,7 +480,7 @@ class EmasaProductsComponent(ProductsComponent):
         self, page: Any, sku: str, category: Any, url: str
     ) -> Optional[Dict[str, Any]]:
         """
-        Extrae todos los datos del detalle del producto
+        Extrae todos los datos del detalle del producto desde EMASA
 
         Args:
             page: Página de Playwright con el detalle del producto
@@ -467,52 +492,134 @@ class EmasaProductsComponent(ProductsComponent):
             Dict con datos completos del producto o None si falla
         """
         try:
-            # EXTRAER NOMBRE
-            name_selector = "h1, .product-title, .product-name"
-            name_element = await page.query_selector(name_selector)
-            name = await name_element.text_content() if name_element else "Sin nombre"
-            name = name.strip()
+            import re
 
-            # EXTRAER DESCRIPCIÓN
-            desc_selector = ".product-description, .description, p"
-            desc_element = await page.query_selector(desc_selector)
-            description = await desc_element.text_content() if desc_element else ""
-            description = description.strip()
+            # EXTRAER NOMBRE (h3 dentro de box-body)
+            name_element = await page.query_selector(".box-body h3")
+            name = "Sin nombre"
+            if name_element:
+                name = await name_element.text_content()
+                name = name.strip()
 
-            # EXTRAER PRECIO
-            price_selector = ".product-price, .price, .precio"
-            price_element = await page.query_selector(price_selector)
+            # EXTRAER MARCA (span después del nombre)
+            brand_element = await page.query_selector(".box-body .col-sm-8 span")
+            brand = ""
+            if brand_element:
+                brand = await brand_element.text_content()
+                brand = brand.strip()
+
+            # EXTRAER PRECIO CON IVA (tercer h3 en div.pficha)
             price = 0.0
-            if price_element:
-                price_text = await price_element.text_content()
-                # Limpiar precio
-                import re
-                price_clean = re.sub(r"[^\d.,]", "", price_text.replace(".", "").replace(",", "."))
+            price_elements = await page.query_selector_all("div.pficha h3")
+            if len(price_elements) >= 2:  # El segundo precio es "PRECIO CON IVA"
+                price_text = await price_elements[1].text_content()
+                # Limpiar precio: $37.604 -> 37604
+                price_clean = re.sub(r"[^\d]", "", price_text)
                 try:
                     price = float(price_clean) if price_clean else 0.0
                 except:
                     price = 0.0
 
-            # EXTRAER IMAGEN
-            img_selector = ".product-image img, .main-image img, img"
-            img_element = await page.query_selector(img_selector)
-            image_url = ""
-            if img_element:
-                image_url = await img_element.get_attribute("src") or ""
-                if image_url and not image_url.startswith("http"):
-                    image_url = f"https://ecommerce.emasa.cl/b2b/{image_url.lstrip('/')}"
+            # EXTRAER DESCRIPCIÓN/CARACTERÍSTICAS (dentro del jumbotron)
+            characteristics = []
+            char_elements = await page.query_selector_all(".jumbotron ul li")
+            for elem in char_elements:
+                char_text = await elem.text_content()
+                if char_text:
+                    characteristics.append(char_text.strip())
 
-            # EXTRAER STOCK (si está disponible)
-            stock_selector = ".stock, .availability, .disponibilidad"
-            stock_element = await page.query_selector(stock_selector)
-            stock = 1  # Por defecto
-            if stock_element:
-                stock_text = await stock_element.text_content()
-                # Intentar extraer número
-                import re
-                stock_match = re.search(r'\d+', stock_text)
-                if stock_match:
-                    stock = int(stock_match.group())
+            # Mantener descripción como texto para compatibilidad
+            description = "\n".join(characteristics) if characteristics else ""
+
+            # EXTRAER TODAS LAS IMÁGENES (del slider)
+            images = []
+            img_elements = await page.query_selector_all("#slider-thumbs img")
+            for img_elem in img_elements:
+                img_src = await img_elem.get_attribute(
+                    "data-zoom"
+                )  # Usar data-zoom para obtener imagen grande
+                if not img_src:
+                    img_src = await img_elem.get_attribute("src")
+
+                if img_src and "no_image" not in img_src:
+                    # Convertir a URL completa
+                    if not img_src.startswith("http"):
+                        img_src = (
+                            f"https://ecommerce.emasa.cl/b2b/{img_src.lstrip('/')}"
+                        )
+                    images.append(img_src)
+
+            # Primera imagen como principal
+            image_url = images[0] if images else ""
+
+            # EXTRAER COMPATIBILIDAD (tabla de aplicaciones)
+            compatibility = []
+            app_rows = await page.query_selector_all("#tb1 tbody tr")
+            for row in app_rows:
+                cells = await row.query_selector_all("td")
+                if len(cells) >= 3:
+                    brand_auto = await cells[0].text_content()
+                    model = await cells[1].text_content()
+                    years = await cells[2].text_content()
+
+                    # Separar año inicio y término
+                    year_match = re.search(r"(\d{4})\s*-\s*(\d{4}|--)", years.strip())
+                    year_start = None
+                    year_end = None
+                    if year_match:
+                        try:
+                            year_start = int(year_match.group(1))
+                            if year_match.group(2) != "--":
+                                year_end = int(year_match.group(2))
+                        except ValueError:
+                            pass
+
+                    # Extraer nombre secundario del modelo (después del "/")
+                    model_text = model.strip()
+                    secondary_name = ""
+                    if "/" in model_text:
+                        parts = model_text.split("/", 1)
+                        model_text = parts[0].strip()
+                        secondary_name = parts[1].strip() if len(parts) > 1 else ""
+
+                    compatibility.append(
+                        {
+                            "car_brand": brand_auto.strip(),
+                            "car_model": model_text,
+                            "secondary_name": secondary_name
+                            if secondary_name
+                            else None,
+                            "year_start": year_start,
+                            "year_end": year_end,
+                        }
+                    )
+
+            # EXTRAER STOCK (del input max)
+            stock = 0
+            stock_input = await page.query_selector("#txtAgrega")
+            if stock_input:
+                max_stock = await stock_input.get_attribute("max")
+                if max_stock:
+                    try:
+                        stock = int(max_stock)
+                    except:
+                        stock = 0
+
+            # VERIFICAR SI ESTÁ EN OFERTA
+            is_offer = False
+            offer_badge = await page.query_selector(".label-dcto")
+            if offer_badge:
+                is_offer = True
+
+            # LOG de debug para ver qué se extrajo
+            self.logger.info(f"   📊 Datos extraídos:")
+            self.logger.info(f"      - Nombre: {name[:50]}...")
+            self.logger.info(f"      - Marca: {brand}")
+            self.logger.info(f"      - Precio: ${price}")
+            self.logger.info(f"      - Imágenes: {len(images)}")
+            self.logger.info(f"      - Compatibilidades: {len(compatibility)}")
+            self.logger.info(f"      - Stock: {stock}")
+            self.logger.info(f"      - Es oferta: {is_offer}")
 
             return {
                 "name": name,
@@ -520,15 +627,21 @@ class EmasaProductsComponent(ProductsComponent):
                 "price": price,
                 "url": url,
                 "image_url": image_url,
+                "images": images,  # Todas las imágenes
                 "category_id": category.id,
                 "category_name": category.name,
                 "stock": stock,
                 "description": description,
+                "brand": brand,
+                "characteristics": characteristics,  # Array de características para tabla
+                "applications": compatibility,  # Lista de aplicaciones/compatibilidades
+                "is_offer": is_offer,
             }
 
         except Exception as e:
             self.logger.warning(f"⚠️ Error extrayendo detalle del producto {sku}: {e}")
             import traceback
+
             self.logger.debug(traceback.format_exc())
             return None
 
@@ -564,6 +677,12 @@ class EmasaProductsComponent(ProductsComponent):
             saved_count = 0
             for product_data in products:
                 try:
+                    # LOG: Ver qué estamos intentando guardar
+                    apps_count = len(product_data.get("applications", []))
+                    self.logger.info(
+                        f"💾 Guardando {product_data['sku']}: {apps_count} aplicaciones"
+                    )
+
                     # Verificar si el producto ya existe
                     result = await self.db.execute(
                         select(Product).where(
@@ -583,8 +702,38 @@ class EmasaProductsComponent(ProductsComponent):
                         existing_product.description = product_data.get(
                             "description", ""
                         )
+                        existing_product.brand = product_data.get("brand", "")
+                        existing_product.images = product_data.get("images", [])
+
+                        # Guardar aplicaciones/compatibilidades en extra_data
+                        # IMPORTANTE: Crear un nuevo dict para forzar la actualización en SQLAlchemy
+                        extra_data = dict(existing_product.extra_data or {})
+                        extra_data["applications"] = product_data.get(
+                            "applications", []
+                        )
+                        extra_data["characteristics"] = product_data.get(
+                            "characteristics", []
+                        )
+                        extra_data["is_offer"] = product_data.get("is_offer", False)
+                        existing_product.extra_data = extra_data
+
+                        # Marcar explícitamente que extra_data fue modificado
+                        from sqlalchemy.orm.attributes import flag_modified
+
+                        flag_modified(existing_product, "extra_data")
+
+                        self.logger.info(
+                            f"   ✏️ Actualizado (existía): {apps_count} apps en extra_data"
+                        )
                     else:
                         # Crear nuevo producto
+                        # Preparar extra_data con aplicaciones/compatibilidades
+                        extra_data = {
+                            "applications": product_data.get("applications", []),
+                            "characteristics": product_data.get("characteristics", []),
+                            "is_offer": product_data.get("is_offer", False),
+                        }
+
                         product = Product(
                             name=product_data["name"],
                             sku=product_data["sku"],
@@ -595,8 +744,14 @@ class EmasaProductsComponent(ProductsComponent):
                             url=product_data.get("url", ""),
                             image_url=product_data.get("image_url", ""),
                             description=product_data.get("description", ""),
+                            brand=product_data.get("brand", ""),
+                            images=product_data.get("images", []),
+                            extra_data=extra_data,
                         )
                         self.db.add(product)
+                        self.logger.info(
+                            f"   ➕ Creado (nuevo): {apps_count} apps en extra_data"
+                        )
 
                     saved_count += 1
 

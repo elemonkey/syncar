@@ -53,7 +53,7 @@ export function useAutoRefresh({
         const apiUrl =
           process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
         const response = await fetch(`${apiUrl}/import-jobs?limit=1`);
-        
+
         if (response.ok) {
           const data = await response.json();
           const hasActiveJobs = data.jobs?.some(
@@ -63,7 +63,10 @@ export function useAutoRefresh({
           if (hasActiveJobs) {
             // Si hay jobs activos, refrescar más frecuentemente
             onRefresh();
-            refreshTimeoutRef.current = setTimeout(checkForActiveJobs, interval);
+            refreshTimeoutRef.current = setTimeout(
+              checkForActiveJobs,
+              interval
+            );
           } else {
             // Si no hay jobs activos, verificar de nuevo en el doble de tiempo
             refreshTimeoutRef.current = setTimeout(

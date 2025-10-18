@@ -284,6 +284,7 @@ async def dev_import_categories(importer_name: str, db: AsyncSession = Depends(g
 
                     # Esperar brevemente para poder inspeccionar
                     import asyncio
+
                     await asyncio.sleep(3)
 
                     logger.info("✅ Proceso completado, cerrando navegador...")
@@ -433,7 +434,9 @@ async def _execute_dev_import_products(
 
                         # ⚠️ MANTENER NAVEGADOR ABIERTO INDEFINIDAMENTE PARA DESARROLLO
                         logger.info("=" * 80)
-                        logger.info("🔧 MODO DESARROLLO - NAVEGADOR PERMANECERÁ ABIERTO")
+                        logger.info(
+                            "🔧 MODO DESARROLLO - NAVEGADOR PERMANECERÁ ABIERTO"
+                        )
                         logger.info("=" * 80)
                         logger.info("")
                         logger.info(
@@ -445,10 +448,14 @@ async def _execute_dev_import_products(
                         logger.info("   1. Inspeccionar los productos en el navegador")
                         logger.info("   2. Verificar la estructura de las páginas")
                         logger.info("   3. Navegar manualmente por el sitio")
-                        logger.info("   4. Desarrollar/ajustar selectores si es necesario")
+                        logger.info(
+                            "   4. Desarrollar/ajustar selectores si es necesario"
+                        )
                         logger.info("")
                         logger.info("⏸️  El navegador NO se cerrará automáticamente")
-                        logger.info("🛑 Presiona Ctrl+C en esta terminal cuando termines")
+                        logger.info(
+                            "🛑 Presiona Ctrl+C en esta terminal cuando termines"
+                        )
                         logger.info("")
                         logger.info("=" * 80)
 
@@ -464,7 +471,10 @@ async def _execute_dev_import_products(
 
                     elif importer_name.upper() == "EMASA":
                         logger.info("🔧 Ejecutando componente de EMASA")
-                        from app.importers.emasa import EmasaAuthComponent, EmasaProductsComponent
+                        from app.importers.emasa import (
+                            EmasaAuthComponent,
+                            EmasaProductsComponent,
+                        )
 
                         # Paso 1: Autenticación
                         auth_component = EmasaAuthComponent(
@@ -522,7 +532,9 @@ async def _execute_dev_import_products(
 
                         # ⚠️ MANTENER NAVEGADOR ABIERTO INDEFINIDAMENTE PARA DESARROLLO
                         logger.info("=" * 80)
-                        logger.info("🔧 MODO DESARROLLO - NAVEGADOR PERMANECERÁ ABIERTO")
+                        logger.info(
+                            "🔧 MODO DESARROLLO - NAVEGADOR PERMANECERÁ ABIERTO"
+                        )
                         logger.info("=" * 80)
                         logger.info("")
                         logger.info(
@@ -534,10 +546,14 @@ async def _execute_dev_import_products(
                         logger.info("   1. Inspeccionar los productos en el navegador")
                         logger.info("   2. Verificar la estructura de las páginas")
                         logger.info("   3. Navegar manualmente por el sitio")
-                        logger.info("   4. Desarrollar/ajustar selectores si es necesario")
+                        logger.info(
+                            "   4. Desarrollar/ajustar selectores si es necesario"
+                        )
                         logger.info("")
                         logger.info("⏸️  El navegador NO se cerrará automáticamente")
-                        logger.info("🛑 Presiona Ctrl+C en esta terminal cuando termines")
+                        logger.info(
+                            "🛑 Presiona Ctrl+C en esta terminal cuando termines"
+                        )
                         logger.info("")
                         logger.info("=" * 80)
 
@@ -693,51 +709,100 @@ async def get_dev_job_status(job_id: str, db: AsyncSession = Depends(get_db)):
 async def cancel_job(job_id: str, db: AsyncSession = Depends(get_db)):
     """
     Cancela un job de importación en curso
-    
+
     Este endpoint:
     1. Marca el job como cancelado en la BD
     2. El navegador se cerrará automáticamente cuando detecte el cambio de status
     3. Los workers de Playwright limpiarán sus recursos
     """
     logger.info(f"🛑 Cancelando job: {job_id}")
-    
+
     try:
         # Buscar el job
-        result = await db.execute(
-            select(ImportJob).where(ImportJob.job_id == job_id)
-        )
+        result = await db.execute(select(ImportJob).where(ImportJob.job_id == job_id))
         job = result.scalar_one_or_none()
-        
+
         if not job:
             raise HTTPException(status_code=404, detail="Job no encontrado")
-        
+
         # Verificar que esté en un estado cancelable
         if job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
             return {
                 "success": False,
                 "message": f"El job ya está en estado: {job.status}",
                 "job_id": job_id,
-                "status": job.status
+                "status": job.status,
             }
-        
+
         # Marcar como cancelado
         job.status = JobStatus.CANCELLED
         job.progress = 0
         job.error_message = "Importación cancelada por el usuario"
-        
+
         await db.commit()
-        
+
         logger.info(f"✅ Job {job_id} marcado como cancelado")
-        
+
         return {
             "success": True,
             "message": "Job cancelado exitosamente. El navegador se cerrará automáticamente.",
             "job_id": job_id,
-            "status": "cancelled"
+            "status": "cancelled",
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"❌ Error cancelando job: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/import-jobs")
+async def get_import_jobs(limit: int = 10, db: AsyncSession = Depends(get_db)):
+    """
+    Obtiene la lista de jobs de importación recientes
+
+    Este endpoint es utilizado por el sistema de auto-refresh para detectar
+    jobs activos y ajustar la frecuencia de actualización.
+
+    Args:
+        limit: Número máximo de jobs a retornar (default: 10)
+
+    Returns:
+        Lista de jobs con su información básica
+    """
+    try:
+        # Consultar jobs recientes ordenados por fecha de creación
+        result = await db.execute(
+            select(ImportJob)
+            .options(joinedload(ImportJob.importer))
+            .order_by(ImportJob.created_at.desc())
+            .limit(limit)
+        )
+        jobs = result.unique().scalars().all()
+
+        # Formatear respuesta
+        jobs_data = []
+        for job in jobs:
+            job_data = {
+                "job_id": job.job_id,
+                "status": job.status.value
+                if hasattr(job.status, "value")
+                else job.status,
+                "job_type": job.job_type.value
+                if hasattr(job.job_type, "value")
+                else job.job_type,
+                "importer_name": job.importer.name if job.importer else None,
+                "created_at": job.created_at.isoformat() if job.created_at else None,
+                "completed_at": job.completed_at.isoformat()
+                if job.completed_at
+                else None,
+                "progress": job.progress,
+            }
+            jobs_data.append(job_data)
+
+        return {"jobs": jobs_data}
+
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo jobs: {e}")
         raise HTTPException(status_code=500, detail=str(e))

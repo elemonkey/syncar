@@ -27,6 +27,8 @@ interface Product {
     origin?: string;
     oem?: string[];
     applications?: Application[];
+    characteristics?: string[];
+    is_offer?: boolean;
   };
   updated_at: string;
 }
@@ -710,11 +712,41 @@ export default function CatalogoPage() {
                     {currentProduct.description && (
                       <div>
                         <h3 className="text-lg font-bold text-white mb-3">
-                          📝 Descripción
+                          📝 Características
                         </h3>
-                        <p className="text-gray-300 text-sm leading-relaxed">
-                          {currentProduct.description}
-                        </p>
+
+                        {/* Si tiene características estructuradas en extra_data, mostrar en tabla */}
+                        {currentProduct.extra_data?.characteristics &&
+                        currentProduct.extra_data.characteristics.length > 0 ? (
+                          <div className="bg-gray-800/50 rounded-lg overflow-hidden border border-gray-700">
+                            <table className="w-full text-sm">
+                              <tbody>
+                                {currentProduct.extra_data.characteristics.map(
+                                  (char: string, index: number) => (
+                                    <tr
+                                      key={index}
+                                      className={
+                                        index % 2 === 0
+                                          ? "bg-gray-800/30"
+                                          : "bg-gray-800/10"
+                                      }
+                                    >
+                                      <td className="px-4 py-2 text-gray-300 border-b border-gray-700/50">
+                                        <span className="inline-block w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                                        {char}
+                                      </td>
+                                    </tr>
+                                  )
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          // Fallback: mostrar descripción de texto plano
+                          <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">
+                            {currentProduct.description}
+                          </p>
+                        )}
                       </div>
                     )}
 

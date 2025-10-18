@@ -91,8 +91,9 @@ export function ImportJobProvider({ children }: { children: React.ReactNode }) {
     if (!currentJob) return;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-      
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
       // Llamar al endpoint de cancelación
       const response = await fetch(`${apiUrl}/dev/cancel/${currentJob.jobId}`, {
         method: "POST",
@@ -116,7 +117,14 @@ export function ImportJobProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ImportJobContext.Provider
-      value={{ currentJob, startJob, updateJob, closeJob, toggleMinimize, cancelJob }}
+      value={{
+        currentJob,
+        startJob,
+        updateJob,
+        closeJob,
+        toggleMinimize,
+        cancelJob,
+      }}
     >
       {children}
     </ImportJobContext.Provider>

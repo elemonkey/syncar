@@ -6,7 +6,8 @@ import { emitDataChanged } from "@/lib/hooks/useAutoRefresh";
 import { useToast } from "@/contexts/ToastContext";
 
 export default function PersistentImportModal() {
-  const { currentJob, updateJob, closeJob, toggleMinimize, cancelJob } = useImportJob();
+  const { currentJob, updateJob, closeJob, toggleMinimize, cancelJob } =
+    useImportJob();
   const [elapsedTime, setElapsedTime] = useState("00:00");
   const [isCancelling, setIsCancelling] = useState(false);
   const { showToast } = useToast();
@@ -55,9 +56,12 @@ export default function PersistentImportModal() {
           } else if (progress < 90) {
             currentStep = "PASO 3: EXTRACCIÓN";
             // Usar datos reales del backend si están disponibles
-            const totalProducts = data.total_items || data.result?.total_items || 100;
-            const currentItem = data.current_item || data.result?.current_item || 0;
-            const processedProducts = data.processed_items || data.result?.processed_items || 0;
+            const totalProducts =
+              data.total_items || data.result?.total_items || 100;
+            const currentItem =
+              data.current_item || data.result?.current_item || 0;
+            const processedProducts =
+              data.processed_items || data.result?.processed_items || 0;
             const currentSku = data.result?.current_sku || "";
             const categoryName = data.result?.category || "";
 
@@ -161,7 +165,11 @@ export default function PersistentImportModal() {
     currentJob.status === "failed" || currentJob.status === "cancelled";
 
   const handleCancelJob = async () => {
-    if (!confirm("¿Estás seguro de cancelar esta importación?\n\nEsto detendrá todos los procesos de scraping activos.")) {
+    if (
+      !confirm(
+        "¿Estás seguro de cancelar esta importación?\n\nEsto detendrá todos los procesos de scraping activos."
+      )
+    ) {
       return;
     }
 
@@ -169,11 +177,11 @@ export default function PersistentImportModal() {
     try {
       await cancelJob();
       // Esperar un momento para que el backend procese la cancelación
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // Cerrar el modal
       closeJob();
-      
+
       // Mostrar toast de confirmación
       showToast("Tarea cancelada exitosamente", "info");
     } catch (error) {

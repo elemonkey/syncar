@@ -76,7 +76,7 @@ class NoriegaCategoriesComponent(CategoriesComponent):
                         "categories": [],
                         "total": 0,
                     }
-                
+
                 try:
                     # Extraer texto (nombre de categoría)
                     category_name = await element.text_content()
@@ -126,7 +126,7 @@ class NoriegaCategoriesComponent(CategoriesComponent):
                         "categories": [],
                         "total": 0,
                     }
-                
+
                 try:
                     category_name = await element.text_content()
                     category_name = category_name.strip() if category_name else ""
@@ -217,7 +217,7 @@ class NoriegaCategoriesComponent(CategoriesComponent):
                         "categories": [],
                         "total": 0,
                     }
-                
+
                 try:
                     # Crear slug del nombre
                     import re
