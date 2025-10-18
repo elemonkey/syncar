@@ -7,6 +7,7 @@ con el navegador visible para facilitar el desarrollo y debugging.
 ⚠️ NO USAR EN PRODUCCIÓN - Solo para desarrollo
 """
 
+import asyncio
 import uuid
 from typing import List
 
@@ -185,14 +186,12 @@ async def dev_import_categories(importer_name: str, db: AsyncSession = Depends(g
                     logger.info("=" * 80)
 
                     # Esperar indefinidamente hasta Ctrl+C
-                    import asyncio
-
                     try:
                         logger.info("⏳ Esperando... (Ctrl+C para cerrar)")
                         while True:
                             await asyncio.sleep(3600)  # Esperar 1 hora, repetir
-                    except KeyboardInterrupt:
-                        logger.info("\n⚠️  Ctrl+C detectado - Cerrando navegador...")
+                    except (KeyboardInterrupt, asyncio.CancelledError):
+                        logger.info("\n⚠️  Ctrl+C o reinicio detectado - Cerrando navegador...")
 
                     return {
                         "success": True,
@@ -460,14 +459,12 @@ async def _execute_dev_import_products(
                         logger.info("=" * 80)
 
                         # Esperar indefinidamente hasta Ctrl+C
-                        import asyncio
-
                         try:
                             logger.info("⏳ Esperando... (Ctrl+C para cerrar)")
                             while True:
                                 await asyncio.sleep(3600)  # Esperar 1 hora, repetir
-                        except KeyboardInterrupt:
-                            logger.info("\n⚠️  Ctrl+C detectado - Cerrando navegador...")
+                        except (KeyboardInterrupt, asyncio.CancelledError):
+                            logger.info("\n⚠️  Ctrl+C o reinicio detectado - Cerrando navegador...")
 
                     elif importer_name.upper() == "EMASA":
                         logger.info("🔧 Ejecutando componente de EMASA")
@@ -558,14 +555,19 @@ async def _execute_dev_import_products(
                         logger.info("=" * 80)
 
                         # Esperar indefinidamente hasta Ctrl+C
-                        import asyncio
-
                         try:
                             logger.info("⏳ Esperando... (Ctrl+C para cerrar)")
                             while True:
                                 await asyncio.sleep(3600)  # Esperar 1 hora, repetir
-                        except KeyboardInterrupt:
-                            logger.info("\n⚠️  Ctrl+C detectado - Cerrando navegador...")
+                        except (KeyboardInterrupt, asyncio.CancelledError):
+                            logger.info("\n⚠️  Ctrl+C o reinicio detectado - Cerrando navegador...")
+
+                except asyncio.CancelledError:
+                    logger.warning("⚠️ Tarea cancelada (servidor reiniciando)")
+                    job.status = JobStatus.CANCELLED
+                    job.error_message = "Tarea cancelada por reinicio del servidor"
+                    await db.commit()
+                    raise  # Re-raise para que uvicorn maneje el shutdown
 
                 except Exception as e:
                     logger.error(f"❌ Error en scraping: {e}")
@@ -579,7 +581,15 @@ async def _execute_dev_import_products(
 
                 finally:
                     logger.info("🔒 Cerrando navegador...")
+                    try:
+                        if 'browser' in locals():
+                            await browser.close()
+                    except Exception as e:
+                        logger.warning(f"⚠️ Error cerrando browser: {e}")
 
+        except asyncio.CancelledError:
+            logger.warning("⚠️ Background task cancelada")
+            raise
         except Exception as e:
             logger.error(f"❌ Error en background task: {e}")
         finally:
