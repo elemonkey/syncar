@@ -1,91 +1,159 @@
-export default function HomePage() {
+"use client";
+
+import { useState, FormEvent, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { Logo } from "@/components/Logo";
+
+export default function LoginPage() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  // Si ya está autenticado, redirigir al dashboard
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, authLoading, router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      await login(username, password, () => {
+        router.push("/dashboard");
+      });
+    } catch (err: any) {
+      setError(err.message || "Credenciales inválidas");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Mostrar loading mientras se verifica la autenticación
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto"></div>
+          <p className="text-gray-400 mt-4">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="text-center space-y-6 p-8">
-        <h1 className="text-6xl font-bold text-white mb-4">SYNCAR</h1>
-        <p className="text-2xl text-gray-300 mb-8">
-          Plataforma de Importación de Datos
-        </p>
-        <div className="space-y-4">
-          <div className="bg-gray-800/50 backdrop-blur p-6 rounded border border-gray-700">
-            <h2 className="text-xl font-semibold text-teal-400 mb-2 flex items-center justify-center space-x-2">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8 flex flex-col items-center">
+          <Logo variant="full" height={50} width={240} className="mb-4" />
+          <p className="text-gray-400">Plataforma de Importación de Datos</p>
+        </div>
+
+        <div className="bg-gray-800/50 backdrop-blur p-8 rounded-lg border border-gray-700">
+          <h2 className="text-2xl font-semibold text-white mb-6 text-center">
+            Iniciar Sesión
+          </h2>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/50 rounded p-3">
+                <p className="text-red-400 text-sm text-center">{error}</p>
+              </div>
+            )}
+
+            <div>
+              <label
+                htmlFor="username"
+                className="block text-sm font-medium text-gray-300 mb-2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span>Backend Configurado</span>
-            </h2>
-            <p className="text-gray-400">FastAPI + SQLAlchemy + Celery</p>
-          </div>
-          <div className="bg-gray-800/50 backdrop-blur p-6 rounded border border-gray-700">
-            <h2 className="text-xl font-semibold text-violet-400 mb-2 flex items-center justify-center space-x-2">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
+                Usuario o Email
+              </label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full bg-gray-900/50 border border-gray-600 rounded px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                placeholder="admin"
+                required
+                autoFocus
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-300 mb-2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-              <span>Frontend Listo</span>
-            </h2>
-            <p className="text-gray-400">Next.js 14 + Tailwind CSS</p>
-          </div>
-          <div className="bg-gray-800/50 backdrop-blur p-6 rounded border border-gray-700">
-            <h2 className="text-xl font-semibold text-emerald-400 mb-2 flex items-center justify-center space-x-2">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                />
-              </svg>
-              <span>Docker Configurado</span>
-            </h2>
-            <p className="text-gray-400">Dev y Prod ready</p>
+                Contraseña
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-gray-900/50 border border-gray-600 rounded px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                placeholder="••••••••"
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Iniciando sesión...
+                </span>
+              ) : (
+                "Iniciar Sesión"
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 pt-6 border-t border-gray-700">
+            <p className="text-gray-500 text-xs text-center">
+              Credenciales por defecto:{" "}
+              <code className="text-teal-400">admin</code> /{" "}
+              <code className="text-teal-400">admin123</code>
+            </p>
           </div>
         </div>
-        <div className="mt-8 text-gray-500 text-sm">
-          <p className="flex items-center justify-center space-x-2">
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-              />
-            </svg>
-            <span>Revisa el README.md para instrucciones de uso</span>
-          </p>
-          <p className="mt-2">
-            API Docs (dev):{" "}
-            <code className="text-teal-400">http://localhost:8000/docs</code>
-          </p>
+
+        <div className="mt-8 text-center text-gray-500 text-sm flex flex-col items-center space-y-2">
+          <Logo variant="icon" height={24} width={48} className="opacity-50" />
+          <p>© 2024-2025 SYNCAR. Todos los derechos reservados.</p>
         </div>
       </div>
     </div>

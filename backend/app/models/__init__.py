@@ -60,12 +60,67 @@ class User(Base):
     full_name: Mapped[Optional[str]] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Relación con rol
+    role_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("roles.id"), nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+    # Relaciones
+    role: Mapped[Optional["Role"]] = relationship("Role", back_populates="users")
+
+
+class Role(Base):
+    """Modelo de roles de usuario"""
+
+    __tablename__ = "roles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(
+        String(50), unique=True, nullable=False, index=True
+    )
+    description: Mapped[Optional[str]] = mapped_column(String(255))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relaciones
+    users: Mapped[List["User"]] = relationship("User", back_populates="role")
+    permissions: Mapped[List["Permission"]] = relationship(
+        "Permission", back_populates="role", cascade="all, delete-orphan"
+    )
+
+
+class Permission(Base):
+    """Modelo de permisos por rol"""
+
+    __tablename__ = "permissions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    role_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("roles.id"), nullable=False
+    )
+    page_name: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )  # 'catalogo', 'importers', 'configuracion'
+    can_access: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    # Relaciones
+    role: Mapped["Role"] = relationship("Role", back_populates="permissions")
 
 
 class Importer(Base):

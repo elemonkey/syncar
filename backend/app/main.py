@@ -1,14 +1,15 @@
 """
 Aplicación principal FastAPI
 """
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+
 from contextlib import asynccontextmanager
 
-from app.core.config import settings
-from app.core.logger import logger
-from app.core.database import engine, Base
 from app.api.v1 import api_router
+from app.core.config import settings
+from app.core.database import Base, engine
+from app.core.logger import logger
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
@@ -20,16 +21,16 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"🚀 Iniciando {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"Ambiente: {settings.ENVIRONMENT}")
-    
+
     # Crear tablas (en desarrollo)
     if settings.is_development:
         logger.info("Creando tablas de base de datos...")
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("✅ Tablas creadas")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("👋 Cerrando aplicación...")
     try:
@@ -70,7 +71,7 @@ async def health_check():
         "status": "healthy",
         "app_name": settings.APP_NAME,
         "version": settings.APP_VERSION,
-        "environment": settings.ENVIRONMENT
+        "environment": settings.ENVIRONMENT,
     }
 
 
@@ -80,5 +81,5 @@ async def root():
     return {
         "message": f"Welcome to {settings.APP_NAME}",
         "version": settings.APP_VERSION,
-        "docs": "/docs" if settings.DEBUG else "Disabled in production"
+        "docs": "/docs" if settings.DEBUG else "Disabled in production",
     }

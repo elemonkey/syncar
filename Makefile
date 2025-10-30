@@ -1,4 +1,4 @@
-.PHONY: help dev-up dev-down dev-backend dev-celery dev-frontend prod-build prod-up prod-down prod-logs test-local shell-db clean
+.PHONY: help dev-up dev-down dev-backend dev-celery dev-frontend prod-build prod-up prod-down prod-logs test-local shell-db clean clean-frontend
 
 # ============================================
 # AYUDA
@@ -25,6 +25,7 @@ help:
 	@echo "🛠️ UTILIDADES:"
 	@echo "  make shell-db        - Abrir shell de PostgreSQL"
 	@echo "  make clean           - Limpiar volúmenes y caché"
+	@echo "  make clean-frontend  - Limpiar caché de Next.js y reiniciar"
 
 # ============================================
 # DESARROLLO LOCAL
@@ -96,6 +97,10 @@ clean:
 	docker-compose -f docker-compose.dev.yml down -v
 	docker-compose -f docker-compose.prod.yml down -v
 	@echo "✅ Limpieza completada"
+
+clean-frontend:
+	@echo "🧹 Limpiando caché de Next.js y reiniciando frontend..."
+	@./scripts/clean-frontend.sh
 
 # ============================================
 # INSTALACIÓN INICIAL

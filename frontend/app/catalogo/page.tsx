@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAutoRefresh } from "@/lib/hooks/useAutoRefresh";
+import { PageHeader } from "@/components/PageHeader";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 interface Application {
   car_brand: string;
@@ -41,6 +43,14 @@ interface Category {
 }
 
 export default function CatalogoPage() {
+  return (
+    <ProtectedRoute requiredPermission="catalogo">
+      <CatalogoContent />
+    </ProtectedRoute>
+  );
+}
+
+function CatalogoContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,7 +121,9 @@ export default function CatalogoPage() {
   const filteredProducts = products.filter(
     (product) =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.brand &&
+        product.brand.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const formatPrice = (price: number) => {
@@ -191,17 +203,28 @@ export default function CatalogoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 pt-8">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            📦 Catálogo de Productos
-          </h1>
-          <p className="text-gray-400">
-            Explora y gestiona todos los productos importados
-          </p>
-        </div>
+        <PageHeader
+          title="Catálogo de Productos"
+          description="Explora y gestiona todos los productos importados"
+          icon={
+            <svg
+              className="w-8 h-8 text-purple-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+              />
+            </svg>
+          }
+        />
 
         {/* Filters */}
         <div className="bg-gray-800/50 backdrop-blur rounded-lg border border-gray-700 p-6 mb-6">
@@ -209,13 +232,13 @@ export default function CatalogoPage() {
             {/* Search */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                🔍 Buscar
+                Buscar
               </label>
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por nombre o SKU..."
+                placeholder="Buscar por nombre, SKU o marca..."
                 className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -223,38 +246,82 @@ export default function CatalogoPage() {
             {/* Importer Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                🏢 Importador
+                Importador
               </label>
-              <select
-                value={selectedImporter}
-                onChange={(e) => setSelectedImporter(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-              >
-                {importers.map((imp) => (
-                  <option key={imp.id} value={imp.id}>
-                    {imp.name}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={selectedImporter}
+                  onChange={(e) => setSelectedImporter(e.target.value)}
+                  className="w-full px-4 py-2 bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-600 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 hover:border-gray-500 transition-all duration-200 shadow-lg"
+                >
+                  {importers.map((imp) => (
+                    <option
+                      key={imp.id}
+                      value={imp.id}
+                      className="bg-gray-900 text-white"
+                    >
+                      {imp.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <svg
+                    className="w-5 h-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
             </div>
 
             {/* Category Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                📂 Categoría
+                Categoría
               </label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-              >
-                <option value="all">Todas</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.slug}>
-                    {cat.name}
+              <div className="relative">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-4 py-2 bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-600 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 hover:border-gray-500 transition-all duration-200 shadow-lg"
+                >
+                  <option value="all" className="bg-gray-900 text-white">
+                    Todas
                   </option>
-                ))}
-              </select>
+                  {categories.map((cat) => (
+                    <option
+                      key={cat.id}
+                      value={cat.slug}
+                      className="bg-gray-900 text-white"
+                    >
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <svg
+                    className="w-5 h-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -311,7 +378,19 @@ export default function CatalogoPage() {
         {/* Empty State */}
         {!loading && filteredProducts.length === 0 && (
           <div className="text-center py-20">
-            <div className="text-6xl mb-4">📦</div>
+            <svg
+              className="w-20 h-20 text-gray-600 mx-auto mb-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+              />
+            </svg>
             <h3 className="text-2xl font-bold text-white mb-2">
               No hay productos
             </h3>
@@ -349,7 +428,7 @@ export default function CatalogoPage() {
                     />
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Importador
+                    IMP
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Producto
@@ -414,7 +493,19 @@ export default function CatalogoPage() {
                                 className="w-full h-full object-cover rounded"
                               />
                             ) : (
-                              <span className="text-sm">📦</span>
+                              <svg
+                                className="w-5 h-5 text-gray-600"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                                />
+                              </svg>
                             )}
                           </div>
                           <div className="text-white text-sm font-medium max-w-xs truncate hover:text-blue-400">
@@ -457,7 +548,7 @@ export default function CatalogoPage() {
                               : "bg-red-500/20 text-red-400"
                           }`}
                         >
-                          {product.stock > 0 ? product.stock : "Sin stock"}
+                          {product.stock}
                         </span>
                       </td>
                     </tr>
@@ -642,7 +733,19 @@ export default function CatalogoPage() {
                         </div>
                       ) : (
                         <div className="w-full aspect-square bg-gray-900 rounded-lg flex items-center justify-center border-2 border-gray-700">
-                          <span className="text-6xl">📦</span>
+                          <svg
+                            className="w-24 h-24 text-gray-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                            />
+                          </svg>
                         </div>
                       )}
                     </div>
@@ -700,9 +803,7 @@ export default function CatalogoPage() {
                                 : "bg-red-500/20 text-red-400"
                             }`}
                           >
-                            {currentProduct.stock > 0
-                              ? currentProduct.stock
-                              : "Sin stock"}
+                            {currentProduct.stock}
                           </span>
                         </div>
                       </div>

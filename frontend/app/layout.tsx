@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navigation } from "@/components/Navigation";
 import { ImportJobProvider } from "@/contexts/ImportJobContext";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import PersistentImportModal from "@/components/PersistentImportModal";
 import { GlobalToastContainer } from "@/components/GlobalToastContainer";
 
@@ -13,9 +14,8 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "SYNCAR - Plataforma de Importación",
-  description:
-    "Plataforma centralizada para importación de datos de proveedores",
+  title: "SYNCAR - Plataforma de Gestión de Repuestos",
+  description: "Sistema de importación y gestión de repuestos automotrices",
 };
 
 export default function RootLayout({
@@ -25,15 +25,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className="dark">
+      <head>
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+      </head>
       <body className={montserrat.className}>
-        <ToastProvider>
-          <ImportJobProvider>
-            <Navigation />
-            {children}
-            <PersistentImportModal />
-            <GlobalToastContainer />
-          </ImportJobProvider>
-        </ToastProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <ImportJobProvider>
+              <Navigation />
+              <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+                {children}
+              </div>
+              <PersistentImportModal />
+              <GlobalToastContainer />
+            </ImportJobProvider>
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

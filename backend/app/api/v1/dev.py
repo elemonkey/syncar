@@ -191,7 +191,9 @@ async def dev_import_categories(importer_name: str, db: AsyncSession = Depends(g
                         while True:
                             await asyncio.sleep(3600)  # Esperar 1 hora, repetir
                     except (KeyboardInterrupt, asyncio.CancelledError):
-                        logger.info("\n⚠️  Ctrl+C o reinicio detectado - Cerrando navegador...")
+                        logger.info(
+                            "\n⚠️  Ctrl+C o reinicio detectado - Cerrando navegador..."
+                        )
 
                     return {
                         "success": True,
@@ -464,7 +466,9 @@ async def _execute_dev_import_products(
                             while True:
                                 await asyncio.sleep(3600)  # Esperar 1 hora, repetir
                         except (KeyboardInterrupt, asyncio.CancelledError):
-                            logger.info("\n⚠️  Ctrl+C o reinicio detectado - Cerrando navegador...")
+                            logger.info(
+                                "\n⚠️  Ctrl+C o reinicio detectado - Cerrando navegador..."
+                            )
 
                     elif importer_name.upper() == "EMASA":
                         logger.info("🔧 Ejecutando componente de EMASA")
@@ -560,7 +564,9 @@ async def _execute_dev_import_products(
                             while True:
                                 await asyncio.sleep(3600)  # Esperar 1 hora, repetir
                         except (KeyboardInterrupt, asyncio.CancelledError):
-                            logger.info("\n⚠️  Ctrl+C o reinicio detectado - Cerrando navegador...")
+                            logger.info(
+                                "\n⚠️  Ctrl+C o reinicio detectado - Cerrando navegador..."
+                            )
 
                 except asyncio.CancelledError:
                     logger.warning("⚠️ Tarea cancelada (servidor reiniciando)")
@@ -582,7 +588,7 @@ async def _execute_dev_import_products(
                 finally:
                     logger.info("🔒 Cerrando navegador...")
                     try:
-                        if 'browser' in locals():
+                        if "browser" in locals():
                             await browser.close()
                     except Exception as e:
                         logger.warning(f"⚠️ Error cerrando browser: {e}")

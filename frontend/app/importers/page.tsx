@@ -3,8 +3,18 @@
 import { useState } from "react";
 import { ImporterTabs } from "@/components/importers/ImporterTabs";
 import { ImporterPanel } from "@/components/importers/ImporterPanel";
+import { PageHeader } from "@/components/PageHeader";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 export default function ImportersPage() {
+  return (
+    <ProtectedRoute requiredPermission="importers">
+      <ImportersContent />
+    </ProtectedRoute>
+  );
+}
+
+function ImportersContent() {
   const [activeImporter, setActiveImporter] = useState("noriega");
 
   const importers = [
@@ -16,12 +26,14 @@ export default function ImportersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header - Sin emoji, con icono outline */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-3 mb-2">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Header */}
+        <PageHeader
+          title="Importadores"
+          description="Gestiona la importación de datos de tus proveedores"
+          icon={
             <svg
-              className="w-10 h-10 text-blue-400"
+              className="w-8 h-8 text-blue-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -33,12 +45,8 @@ export default function ImportersPage() {
                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
               />
             </svg>
-            <h1 className="text-4xl font-bold text-white">Importadores</h1>
-          </div>
-          <p className="text-gray-400">
-            Gestiona la importación de datos de tus proveedores
-          </p>
-        </div>
+          }
+        />
 
         {/* Tabs */}
         <ImporterTabs

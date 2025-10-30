@@ -802,19 +802,6 @@ class NoriegaProductsComponent(ProductsComponent):
             self.logger.error(f"      ❌ Error extrayendo detalle del producto: {e}")
             return None
 
-    async def _extract_product_data(
-        self, element: Any, selectors: Dict[str, str]
-    ) -> Optional[Dict[str, Any]]:
-        """
-        DEPRECADO: Este método ya no se usa.
-
-        Ahora navegamos directamente a la página de detalle de cada producto
-        usando _extract_product_detail() para obtener todos los datos completos.
-
-        Se mantiene por compatibilidad pero no se invoca.
-        """
-        return None
-
     def _parse_price(self, price_text: str) -> Optional[float]:
         """
         Convierte texto de precio a float
@@ -912,17 +899,6 @@ class NoriegaProductsComponent(ProductsComponent):
 
         except (ValueError, AttributeError):
             return 0
-
-    def _parse_applications(self, apps_text: str) -> List[Dict[str, Any]]:
-        """
-        DEPRECADO: Ya no se usa este método.
-
-        Las aplicaciones se extraen directamente desde la tabla HTML
-        en _extract_product_detail() usando table.tablaAA.tamano
-
-        Se mantiene por compatibilidad.
-        """
-        return []
 
     async def _save_products(
         self, products: List[Dict[str, Any]], category: Any
