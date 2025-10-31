@@ -27,19 +27,22 @@ export default function AccessDeniedPage() {
         </div>
 
         {/* Título */}
-        <h1 className="text-4xl font-bold text-white mb-4">
-          Acceso Denegado
-        </h1>
+        <h1 className="text-4xl font-bold text-white mb-4">Acceso Denegado</h1>
 
         {/* Descripción */}
         <p className="text-gray-400 mb-8">
           {user ? (
             <>
-              <span className="text-blue-400 font-semibold">{user.username}</span>
+              <span className="text-blue-400 font-semibold">
+                {user.username}
+              </span>
               , no tienes permisos para acceder a esta página.
               <br />
               <span className="text-sm text-gray-500 mt-2 block">
-                Rol actual: <span className="text-gray-300">{user.role?.name || "Sin rol"}</span>
+                Rol actual:{" "}
+                <span className="text-gray-300">
+                  {user.role?.name || "Sin rol"}
+                </span>
               </span>
             </>
           ) : (
@@ -55,7 +58,7 @@ export default function AccessDeniedPage() {
           >
             Volver al Dashboard
           </Link>
-          
+
           <Link
             href="/configuracion"
             className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors"
@@ -69,7 +72,8 @@ export default function AccessDeniedPage() {
           <p className="text-sm text-gray-400">
             💡 <strong className="text-white">¿Necesitas acceso?</strong>
             <br />
-            Contacta con un administrador para solicitar los permisos necesarios.
+            Contacta con un administrador para solicitar los permisos
+            necesarios.
           </p>
         </div>
       </div>

@@ -1,7 +1,7 @@
 # 📊 ESTADO ACTUAL DEL SERVIDOR DE PRODUCCIÓN - SYNCAR 2.0
 
-**Fecha de revisión:** 30 de Octubre de 2025  
-**Servidor:** 45.14.194.85  
+**Fecha de revisión:** 30 de Octubre de 2025
+**Servidor:** 45.14.194.85
 **Dominio:** syncar.cl
 
 ---
@@ -358,6 +358,6 @@ El servidor está **operativo y estable**, pero requiere **actualización urgent
 
 ---
 
-**Revisado por:** GitHub Copilot  
-**Fecha:** 30 de Octubre de 2025  
+**Revisado por:** GitHub Copilot
+**Fecha:** 30 de Octubre de 2025
 **Versión:** 1.0

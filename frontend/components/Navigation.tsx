@@ -84,13 +84,28 @@ export function Navigation() {
 
   // Filtrar items según permisos del usuario
   const allNavItems = [
-    { href: "/dashboard", label: "Inicio", Icon: HomeIcon, permission: "dashboard" },
-    { href: "/catalogo", label: "Catálogo", Icon: CatalogIcon, permission: "catalogo" },
-    { href: "/importers", label: "Importadores", Icon: ImportersIcon, permission: "importers" },
+    {
+      href: "/dashboard",
+      label: "Inicio",
+      Icon: HomeIcon,
+      permission: "dashboard",
+    },
+    {
+      href: "/catalogo",
+      label: "Catálogo",
+      Icon: CatalogIcon,
+      permission: "catalogo",
+    },
+    {
+      href: "/importers",
+      label: "Importadores",
+      Icon: ImportersIcon,
+      permission: "importers",
+    },
   ];
 
   // Mostrar solo los items que el usuario tiene permiso para ver
-  const navItems = allNavItems.filter(item => hasPermission(item.permission));
+  const navItems = allNavItems.filter((item) => hasPermission(item.permission));
 
   // No mostrar navegación en la página de login
   if (pathname === "/" || !isAuthenticated) {

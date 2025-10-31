@@ -14,6 +14,11 @@ from app.importers.noriega import (
     NoriegaCategoriesComponent,
     NoriegaProductsComponent,
 )
+from app.importers.emasa import (
+    EmasaAuthComponent,
+    EmasaCategoriesComponent,
+    EmasaProductsComponent,
+)
 from app.importers.orchestrator import ImportOrchestrator
 from app.models import Importer, ImportJob, JobStatus, JobType
 from app.tasks.celery_app import celery_app
@@ -117,6 +122,51 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
 
                         # Paso 2: Extracción de categorías
                         categories_component = NoriegaCategoriesComponent(
+                            importer_name=importer_name,
+                            job_id=job_id,
+                            db=db,
+                            browser=browser,
+                            page=page,
+                            context=context,
+                        )
+                        result = await categories_component.execute()
+
+                    elif importer_name.upper() == "EMASA":
+                        # Usar componentes específicos de EMASA
+                        logger.info("🔧 Usando componentes de EMASA")
+
+                        # Paso 1: Autenticación
+                        auth_component = EmasaAuthComponent(
+                            importer_name=importer_name,
+                            job_id=job_id,
+                            db=db,
+                            browser=browser,
+                            credentials=credentials,
+                            headless=settings.HEADLESS,
+                        )
+                        auth_result = await auth_component.execute()
+
+                        # Guardar referencias a page y context
+                        page = auth_result.get("page")
+                        context = auth_result.get("context")
+
+                        # Crear resultado sin objetos no serializables
+                        clean_auth_result = {
+                            "success": auth_result["success"],
+                            "message": auth_result.get("message", ""),
+                            "error": auth_result.get("error"),
+                        }
+
+                        if not auth_result["success"]:
+                            logger.error("❌ Autenticación fallida")
+                            job.status = JobStatus.FAILED
+                            job.result = clean_auth_result
+                            await db.commit()
+
+                            return clean_auth_result
+
+                        # Paso 2: Extracción de categorías
+                        categories_component = EmasaCategoriesComponent(
                             importer_name=importer_name,
                             job_id=job_id,
                             db=db,
@@ -322,6 +372,80 @@ async def _run_import_products(
 
                         # Paso 2: Extracción de productos
                         products_component = NoriegaProductsComponent(
+                            importer_name=importer_name,
+                            job_id=job_id,
+                            db=db,
+                            browser=browser,
+                            page=page,
+                            context=context,
+                            selected_categories=selected_categories,
+                            config=config,
+                        )
+                        result = await products_component.execute()
+
+                    elif importer_name.upper() == "EMASA":
+                        # Usar componentes específicos de EMASA
+                        logger.info("🔧 Usando componentes de EMASA para productos")
+
+                        # Obtener credenciales
+                        from sqlalchemy.orm import joinedload
+
+                        result_config = await db.execute(
+                            select(Importer)
+                            .options(joinedload(Importer.config))
+                            .where(Importer.name == importer_name.upper())
+                        )
+                        importer_with_config = (
+                            result_config.unique().scalar_one_or_none()
+                        )
+                        credentials = (
+                            importer_with_config.config.credentials or {}
+                            if importer_with_config and importer_with_config.config
+                            else {}
+                        )
+
+                        # Paso 1: Autenticación
+                        auth_component = EmasaAuthComponent(
+                            importer_name=importer_name,
+                            job_id=job_id,
+                            db=db,
+                            browser=browser,
+                            credentials=credentials,
+                            headless=settings.HEADLESS,
+                        )
+                        auth_result = await auth_component.execute()
+
+                        # Guardar referencias a page y context
+                        page = auth_result.get("page")
+                        context = auth_result.get("context")
+
+                        if not auth_result["success"]:
+                            logger.error("❌ Autenticación fallida")
+                            job.status = JobStatus.FAILED
+                            job.result = {
+                                "success": False,
+                                "message": auth_result.get("message", ""),
+                                "error": auth_result.get("error"),
+                            }
+                            await db.commit()
+                            return job.result
+
+                        # Obtener configuración del importador
+                        config = {
+                            "products_per_category": (
+                                importer_with_config.config.products_per_category
+                                if importer_with_config.config
+                                else None
+                            ),
+                            "scraping_speed_ms": (
+                                importer_with_config.config.scraping_speed_ms
+                                if importer_with_config.config
+                                else 1000
+                            ),
+                        }
+
+                        # Paso 2: Extracción de productos
+                        products_component = EmasaProductsComponent(
                             importer_name=importer_name,
                             job_id=job_id,
                             db=db,

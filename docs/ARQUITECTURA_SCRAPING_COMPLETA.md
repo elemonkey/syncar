@@ -369,7 +369,7 @@ for product_data in products:
    ```
    Primera vez: "Frenos" (100 productos)
    Segunda vez: "Frenos" + "Embragues" (100 + 150 productos)
-   
+
    Resultado:
    - "Frenos": 100 productos actualizados
    - "Embragues": 150 productos nuevos insertados
@@ -436,21 +436,21 @@ async def execute(self) -> Dict[str, Any]:
     # 1. Crear contexto del navegador
     context = await browser.new_context()
     page = await context.new_page()
-    
+
     # 2. Navegar a login
     await page.goto("https://ecommerce.noriegavanzulli.cl/b2b/loginvip.jsp")
-    
+
     # 3. Completar formulario
     await page.fill('input[name="trut"]', credentials["rut"])
     await page.fill('input[name="tuser"]', credentials["username"])
     await page.fill('input[name="tpass"]', credentials["password"])
-    
+
     # 4. Submit
     await page.click('input[name="Ingresar"]')
-    
+
     # 5. Cerrar modal si existe
     # ... lógica de detección de modal
-    
+
     return {
         "success": True,
         "page": page,
@@ -463,22 +463,22 @@ async def execute(self) -> Dict[str, Any]:
 async def execute(self) -> Dict[str, Any]:
     # 1. Navegar a página de categorías
     await page.goto("https://ecommerce.noriegavanzulli.cl/b2b/consultacodigos.jsp")
-    
+
     # 2. Extraer datos de la tabla
     rows = await page.query_selector_all("table tr")
     categories = []
-    
+
     for row in rows:
         name = await row.query_selector("td:nth-child(1)")
         tipo = await row.query_selector("td:nth-child(2)")
         # ... extraer más datos
-        
+
         categories.append({
             "name": name_text,
             "tipo": tipo_text,
             "url": self._build_category_url(name_text, tipo_text)
         })
-    
+
     # 3. Guardar en BD
     for cat_data in categories:
         # Buscar si existe
@@ -488,7 +488,7 @@ async def execute(self) -> Dict[str, Any]:
                 Category.name == cat_data["name"]
             )
         )
-        
+
         if existing:
             # Actualizar
             existing.url = cat_data["url"]
@@ -496,9 +496,9 @@ async def execute(self) -> Dict[str, Any]:
             # Insertar
             new_cat = Category(**cat_data)
             db.add(new_cat)
-    
+
     await db.commit()
-    
+
     return {
         "success": True,
         "categories": categories,
@@ -510,46 +510,46 @@ async def execute(self) -> Dict[str, Any]:
 ```python
 async def execute(self) -> Dict[str, Any]:
     total_products = 0
-    
+
     # Por cada categoría seleccionada
     for category_id in selected_categories:
         # 1. Obtener categoría de BD
         category = await db.get(Category, category_id)
-        
+
         # 2. Construir URL según tipo
         if category.tipo == "POR_MEDIDA":
             url = f"https://...?medida={category.name}"
         else:
             url = f"https://...?fabricante={category.name}"
-        
+
         # 3. Navegar
         await page.goto(url)
-        
+
         # 4. Extraer lista de SKUs
         skus = await self._extract_sku_list()
-        
+
         # 5. Limitar si es necesario
         if self.products_per_category:
             skus = skus[:self.products_per_category]
-        
+
         # 6. Por cada SKU
         products = []
         for sku in skus:
             # 6.1 Navegar a detalle
             await page.goto(f"https://.../producto.jsp?codigo={sku}")
-            
+
             # 6.2 Extraer datos
             product_data = await self._extract_product_detail(sku)
             products.append(product_data)
-            
+
             # 6.3 Respetar velocidad
             await asyncio.sleep(self.scraping_speed_ms / 1000)
-        
+
         # 7. Guardar productos en BD
         await self._save_products(products, category)
-        
+
         total_products += len(products)
-    
+
     return {
         "success": True,
         "products_count": total_products
@@ -558,23 +558,23 @@ async def execute(self) -> Dict[str, Any]:
 async def _extract_product_detail(self, sku: str) -> Dict:
     """Extrae todos los datos de un producto"""
     data = {"sku": sku}
-    
+
     # Nombre
     name_elem = await page.query_selector("#titulo")
     data["name"] = await name_elem.text_content()
-    
+
     # Precio
     price_elem = await page.query_selector("#precio_lista .valor")
     data["price"] = self._parse_price(await price_elem.text_content())
-    
+
     # Stock
     stock_elem = await page.query_selector("#disponibilidad")
     data["stock"] = self._parse_stock(await stock_elem.text_content())
-    
+
     # Marca
     brand_elem = await page.query_selector("#marca")
     data["brand"] = await brand_elem.text_content()
-    
+
     # Imágenes
     images = []
     img_elements = await page.query_selector_all("#fotos img")
@@ -582,14 +582,14 @@ async def _extract_product_detail(self, sku: str) -> Dict:
         src = await img.get_attribute("src")
         images.append(src)
     data["images"] = images
-    
+
     # OEM
     oem_elem = await page.query_selector("#numero_original")
     oem2_elem = await page.query_selector("#numero_fabrica")
     data["extra_data"] = {
         "oem": [await oem_elem.text_content(), await oem2_elem.text_content()]
     }
-    
+
     # Aplicaciones (tabla)
     apps = []
     rows = await page.query_selector_all("table.tablaAA tbody tr.contenidoAA")
@@ -603,7 +603,7 @@ async def _extract_product_detail(self, sku: str) -> Dict:
         }
         apps.append(app)
     data["extra_data"]["applications"] = apps
-    
+
     return data
 
 async def _save_products(self, products: List[Dict], category: Category):
@@ -617,7 +617,7 @@ async def _save_products(self, products: List[Dict], category: Category):
             )
         )
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             # ✅ ACTUALIZAR
             for key, value in product_data.items():
@@ -633,7 +633,7 @@ async def _save_products(self, products: List[Dict], category: Category):
             )
             db.add(new_product)
             logger.info(f"✓ Nuevo: {product_data['name']}")
-    
+
     await db.commit()
 ```
 
@@ -649,26 +649,26 @@ class ImportOrchestrator:
         # 1. Autenticación
         auth_component = AuthComponent(...)
         auth_result = await auth_component.execute()
-        
+
         # 2. Categorías
         categories_component = CategoriesComponent(...)
         result = await categories_component.execute()
-        
+
         return result
-    
+
     async def import_products(self, selected_categories):
         # 1. Autenticación
         auth_component = AuthComponent(...)
         auth_result = await auth_component.execute()
-        
+
         # 2. Configuración
         config_component = ConfigComponent(...)
         config = await config_component.execute()
-        
+
         # 3. Productos
         products_component = ProductsComponent(..., config)
         result = await products_component.execute()
-        
+
         return result
 ```
 
@@ -680,11 +680,11 @@ class ImportOrchestrator:
 @celery_app.task(name="import_categories")
 def import_categories_task(importer_name: str):
     job_id = str(uuid.uuid4())
-    
+
     # Crear event loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    
+
     try:
         return loop.run_until_complete(
             _run_import_categories(importer_name, job_id)
@@ -703,24 +703,24 @@ async def _run_import_categories(importer_name: str, job_id: str):
         )
         db.add(job)
         await db.commit()
-        
+
         # 2. Ejecutar con Playwright
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            
+
             try:
                 # 3. Usar componentes específicos
                 auth = NoriegaAuthComponent(...)
                 auth_result = await auth.execute()
-                
+
                 categories = NoriegaCategoriesComponent(...)
                 result = await categories.execute()
-                
+
                 # 4. Actualizar job
                 job.status = JobStatus.COMPLETED
                 job.result = result
                 await db.commit()
-                
+
                 return result
             finally:
                 await browser.close()
@@ -778,21 +778,21 @@ CREATE TABLE products (
     id SERIAL PRIMARY KEY,
     importer_id INTEGER REFERENCES importers(id),
     category_id INTEGER REFERENCES categories(id),
-    
+
     -- Identificación
     sku VARCHAR(100) NOT NULL,
     name VARCHAR(500) NOT NULL,
     description TEXT,
-    
+
     -- Precios
     price FLOAT,
     original_price FLOAT,
     currency VARCHAR(10) DEFAULT 'CLP',
-    
+
     -- Stock
     stock INTEGER,
     available BOOLEAN DEFAULT TRUE,
-    
+
     -- Metadata
     external_id VARCHAR(100),
     url VARCHAR(500),
@@ -802,15 +802,15 @@ CREATE TABLE products (
     model VARCHAR(100),
     year_start INTEGER,
     year_end INTEGER,
-    
+
     -- Datos adicionales flexibles
     extra_data JSONB,  -- {origin, oem[], applications[], characteristics[]}
-    
+
     -- Timestamps
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     last_scraped_at TIMESTAMP,  -- Última vez que se scrapeo este producto
-    
+
     UNIQUE(importer_id, sku)  -- ⚠️ CLAVE: Evita duplicados
 );
 
@@ -906,7 +906,7 @@ export default function ImportersPage() {
     );
     const data = await response.json();
     setJobId(data.job_id);
-    
+
     // Iniciar polling
     pollJobStatus(data.job_id);
   };
@@ -925,7 +925,7 @@ export default function ImportersPage() {
     );
     const data = await response.json();
     setJobId(data.job_id);
-    
+
     // Iniciar polling
     pollJobStatus(data.job_id);
   };
@@ -935,9 +935,9 @@ export default function ImportersPage() {
     const interval = setInterval(async () => {
       const response = await fetch(`/api/v1/importers/status/${jobId}`);
       const data = await response.json();
-      
+
       setProgress(data.progress);
-      
+
       if (data.status === "completed" || data.status === "failed") {
         clearInterval(interval);
       }
@@ -1187,7 +1187,7 @@ await page.screenshot(path=f"/tmp/noriega_category_{index}_{category_name}.png")
 
 ```sql
 -- Ver todos los jobs
-SELECT 
+SELECT
     job_id,
     job_type,
     status,
@@ -1200,7 +1200,7 @@ FROM import_jobs
 ORDER BY created_at DESC;
 
 -- Ver logs de un job
-SELECT 
+SELECT
     level,
     message,
     timestamp
@@ -1209,7 +1209,7 @@ WHERE job_id = (SELECT id FROM import_jobs WHERE job_id = 'uuid-aqui')
 ORDER BY timestamp DESC;
 
 -- Ver productos por importador
-SELECT 
+SELECT
     i.name AS importador,
     COUNT(p.id) AS total_productos,
     COUNT(DISTINCT p.category_id) AS categorias_con_productos,
@@ -1270,7 +1270,7 @@ except Exception as e:
     job.status = JobStatus.FAILED
     job.error_message = str(e)
     await db.commit()
-    
+
     # Cerrar navegador
     await browser.close()
 ```
@@ -1344,7 +1344,7 @@ Importación de Productos (100 productos/categoría):
 
 ---
 
-**Autor**: SYNCAR Development Team  
-**Fecha**: 30 de Octubre de 2025  
-**Versión**: 2.0  
+**Autor**: SYNCAR Development Team
+**Fecha**: 30 de Octubre de 2025
+**Versión**: 2.0
 **Última Actualización**: Este documento

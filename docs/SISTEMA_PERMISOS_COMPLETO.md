@@ -430,6 +430,6 @@ El sistema de permisos está **completamente funcional** y protege toda la aplic
 
 ---
 
-**Autor:** SYNCAR Development Team  
-**Fecha:** 30 de Octubre de 2025  
+**Autor:** SYNCAR Development Team
+**Fecha:** 30 de Octubre de 2025
 **Versión:** 2.0
