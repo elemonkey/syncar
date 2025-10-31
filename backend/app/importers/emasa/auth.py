@@ -63,7 +63,8 @@ class EmasaAuthComponent(AuthComponent):
 
             logger.info("=== INICIANDO AUTENTICACIÓN EMASA ===")
             logger.info(f"Navegando a: {login_url}")  # Navegar a la página de login
-            await page.goto(login_url, wait_until="networkidle")
+            # Aumentar timeout y cambiar estrategia por conexión lenta desde Europa a Chile
+            await page.goto(login_url, wait_until="domcontentloaded", timeout=60000)
 
             # 📸 Screenshot página de login
             screenshot_login = "/tmp/emasa_01_login_page.png"

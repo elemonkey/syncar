@@ -9,15 +9,15 @@ from typing import List
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.logger import logger
-from app.importers.noriega import (
-    NoriegaAuthComponent,
-    NoriegaCategoriesComponent,
-    NoriegaProductsComponent,
-)
 from app.importers.emasa import (
     EmasaAuthComponent,
     EmasaCategoriesComponent,
     EmasaProductsComponent,
+)
+from app.importers.noriega import (
+    NoriegaAuthComponent,
+    NoriegaCategoriesComponent,
+    NoriegaProductsComponent,
 )
 from app.importers.orchestrator import ImportOrchestrator
 from app.models import Importer, ImportJob, JobStatus, JobType
@@ -75,8 +75,22 @@ async def _run_import_categories(importer_name: str, job_id: str) -> dict:
             # Ejecutar importación con Playwright
             async with async_playwright() as p:
                 # Usar configuración de headless del settings (True en producción, False en desarrollo)
+                # Agregar args necesarios para headless en Docker
+                launch_args = []
+                if settings.HEADLESS:
+                    launch_args = [
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-accelerated-2d-canvas',
+                        '--no-first-run',
+                        '--no-zygote',
+                        '--disable-gpu'
+                    ]
+                
                 browser = await p.chromium.launch(
                     headless=settings.HEADLESS,
+                    args=launch_args,
                     slow_mo=500
                     if not settings.HEADLESS
                     else 0,  # Ralentizar solo en modo visible
@@ -299,8 +313,22 @@ async def _run_import_products(
 
             # Ejecutar importación con Playwright
             async with async_playwright() as p:
+                # Agregar args necesarios para headless en Docker
+                launch_args = []
+                if settings.HEADLESS:
+                    launch_args = [
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-accelerated-2d-canvas',
+                        '--no-first-run',
+                        '--no-zygote',
+                        '--disable-gpu'
+                    ]
+                
                 browser = await p.chromium.launch(
                     headless=settings.HEADLESS,
+                    args=launch_args,
                     slow_mo=500 if not settings.HEADLESS else 0,
                 )
 
