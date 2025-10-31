@@ -42,6 +42,7 @@ class EmasaAuthComponent(AuthComponent):
             context = await self.browser.new_context(
                 viewport={"width": 1920, "height": 1080},
                 user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+                ignore_https_errors=True,  # Ignorar errores de certificado SSL
             )
 
             # Crear nueva página
